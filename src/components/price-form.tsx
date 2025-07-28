@@ -31,7 +31,7 @@ import {
   AlertDialogTitle,
 } from './ui/alert-dialog';
 import { useState } from 'react';
-import { Camera, CheckCircle2, Loader2, MapPin } from 'lucide-react';
+import { Camera, CheckCircle2, Leaf, Loader2, MapPin, Warehouse } from 'lucide-react';
 import { Separator } from './ui/separator';
 import { Checkbox } from './ui/checkbox';
 
@@ -162,7 +162,7 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-primary">
-                <MapPin className="h-6 w-6"/>
+                <Leaf className="h-6 w-6"/>
                 {station.name}
               </CardTitle>
             </CardHeader>
@@ -264,20 +264,12 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
           <div className="space-y-6">
             {fields.map((field, index) => {
               const competitorNoChange = form.watch(`competitors.${index}.noChange`);
-              const CompetitorIcon = () => (
-                <svg width="24" height="24" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M16 11.9573C16 11.9573 17.7619 13.5427 22.8889 13.5427C28.0159 13.5427 29.7778 11.9573 29.7778 11.9573L29.7778 4L16 4L16 11.9573Z" fill="#2F88FF" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  <path d="M16 29.7778V44H29.7778V29.7778" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  <path d="M16 13.5427V29.7778H29.7778V13.5427" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  <path d="M22.8889 13.5427C22.8889 16.5919 20.3708 19.1111 17.3216 19.1111" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              );
-              
+             
               return (
               <Card key={field.id}>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-green-400">
-                    <CompetitorIcon />
+                  <CardTitle className="flex items-center gap-2 text-gray-600">
+                    <Warehouse className="h-6 w-6" />
                     {field.name}
                   </CardTitle>
                 </CardHeader>

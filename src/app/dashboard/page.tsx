@@ -66,7 +66,7 @@ export default function DashboardPage() {
               <p className="font-semibold text-foreground">{managerId}</p>
               <p className="text-sm text-muted-foreground">{station.name}</p>
             </div>
-            <Button variant="ghost" size="icon" onClick={handleLogout} aria-label="Sair" className="text-foreground hover:text-primary">
+            <Button variant="ghost" size="icon" onClick={handleLogout} aria-label="Sair" className="text-muted-foreground hover:text-primary">
               <LogOut className="h-5 w-5" />
             </Button>
           </div>
