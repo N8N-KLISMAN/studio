@@ -244,6 +244,7 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
                   </FormItem>
                 )}
               />
+              {!stationNoChange && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -298,6 +299,7 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
                   )}
                 />
               </div>
+              )}
             </CardContent>
           </Card>
 
@@ -340,6 +342,7 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
                       </FormItem>
                     )}
                   />
+                  {!competitorNoChange && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
@@ -394,6 +397,7 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
                       )}
                     />
                   </div>
+                  )}
                 </CardContent>
               </Card>
             )})}
@@ -433,5 +437,3 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
     </>
   );
 }
-
-    
