@@ -18,24 +18,27 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // This code now runs only on the client, after the initial render.
     const storedStationId = localStorage.getItem('stationId');
     const storedManagerId = localStorage.getItem('managerId');
 
     if (!storedStationId || !storedManagerId) {
       router.replace('/login');
-    } else {
-      const foundStation = STATIONS.find((s) => s.id === storedStationId);
-      if (foundStation) {
-        setStation(foundStation);
-        setManagerId(storedManagerId);
-      } else {
-        // Clear invalid data and redirect
-        localStorage.removeItem('stationId');
-        localStorage.removeItem('managerId');
-        router.replace('/login');
-      }
-      setIsLoading(false);
+      return; // Stop execution if not logged in
     }
+
+    const foundStation = STATIONS.find((s) => s.id === storedStationId);
+    if (foundStation) {
+      setStation(foundStation);
+      setManagerId(storedManagerId);
+    } else {
+      // Clear invalid data and redirect
+      localStorage.removeItem('stationId');
+      localStorage.removeItem('managerId');
+      router.replace('/login');
+    }
+    
+    setIsLoading(false);
   }, [router]);
 
   const handleLogout = () => {
@@ -44,7 +47,7 @@ export default function DashboardPage() {
     router.replace('/login');
   };
 
-  if (isLoading || !station || !managerId) {
+  if (isLoading) {
     return (
       <div className="container mx-auto p-4 md:p-8">
         <div className="flex justify-between items-center mb-4">
@@ -59,6 +62,12 @@ export default function DashboardPage() {
         </div>
       </div>
     );
+  }
+
+  if (!station || !managerId) {
+    // This state will be hit briefly during the redirect,
+    // or if the data is invalid. It avoids rendering the full page.
+    return null;
   }
 
   return (
