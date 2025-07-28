@@ -30,7 +30,7 @@ const CompetitorSchema = z.object({
     ).optional(),
 });
 
-export const SubmitPricesInputSchema = z.object({
+const SubmitPricesInputSchema = z.object({
   managerId: z.string(),
   stationId: z.string(),
   period: z.string(),
@@ -47,7 +47,7 @@ export const SubmitPricesInputSchema = z.object({
 
 export type SubmitPricesInput = z.infer<typeof SubmitPricesInputSchema>;
 
-export const SubmitPricesOutputSchema = z.object({
+const SubmitPricesOutputSchema = z.object({
   success: z.boolean(),
   message: z.string(),
 });
