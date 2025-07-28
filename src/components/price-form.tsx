@@ -31,7 +31,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from './ui/alert-dialog';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, forwardRef } from 'react';
 import { Camera, CheckCircle2, Leaf, Loader2, Warehouse, X } from 'lucide-react';
 import { Separator } from './ui/separator';
 import { Checkbox } from './ui/checkbox';
@@ -48,10 +48,10 @@ const ACCEPTED_IMAGE_TYPES = [
 ];
 
 const priceSchema = z.object({
-  etanol: z.coerce.number({ invalid_type_error: "Deve ser um número" }).positive("O preço deve ser positivo").optional(),
-  gasolinaComum: z.coerce.number({ invalid_type_error: "Deve ser um número" }).positive("O preço deve ser positivo").optional(),
-  gasolinaAditivada: z.coerce.number({ invalid_type_error: "Deve ser um número" }).positive("O preço deve ser positivo").optional(),
-  dieselS10: z.coerce.number({ invalid_type_error: "Deve ser um número" }).positive("O preço deve ser positivo").optional(),
+    etanol: z.string().optional(),
+    gasolinaComum: z.string().optional(),
+    gasolinaAditivada: z.string().optional(),
+    dieselS10: z.string().optional(),
 });
 
 const priceFormSchema = z.object({
@@ -91,6 +91,29 @@ const priceFormSchema = z.object({
         .optional(),
     })
   ),
+}).transform((data) => {
+    const processPrices = (prices: Record<string, string | undefined> | undefined) => {
+        if (!prices) return {};
+        const newPrices: Record<string, number | undefined> = {};
+        for (const key in prices) {
+            const value = prices[key];
+            if (typeof value === 'string' && value.includes(',')) {
+                newPrices[key] = parseFloat(value.replace(',', '.'));
+            } else if(value) {
+                newPrices[key] = parseFloat(value);
+            }
+        }
+        return newPrices;
+    };
+
+    return {
+        ...data,
+        stationPrices: processPrices(data.stationPrices),
+        competitors: data.competitors.map(c => ({
+            ...c,
+            prices: processPrices(c.prices),
+        })),
+    };
 });
 
 type PriceFormValues = z.infer<typeof priceFormSchema>;
@@ -167,12 +190,33 @@ const ImageUpload = ({ field, label, id }: { field: any, label: string, id: stri
     );
 };
 
+const PriceInput = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>((props, ref) => {
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        let value = e.target.value.replace(/\D/g, '');
+        if (value.length > 3) {
+            value = value.substring(0, 3);
+        }
+        if (value.length > 0) {
+            value = value.replace(/(\d)(\d{0,2})/, '$1,$2');
+        }
+
+        if (props.onChange) {
+            e.target.value = value;
+            props.onChange(e);
+        }
+    };
+
+    return <Input type="text" placeholder="0,00" {...props} ref={ref} onChange={handleInputChange} />;
+});
+PriceInput.displayName = 'PriceInput';
+
+
 export function PriceForm({ station, period, managerId }: PriceFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const { toast } = useToast();
 
-  const form = useForm<PriceFormValues>({
+  const form = useForm<z.infer<typeof priceFormSchema>>({
     resolver: zodResolver(priceFormSchema),
     defaultValues: {
       stationPrices: {},
@@ -192,13 +236,13 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
 
   const stationNoChange = form.watch('stationNoChange');
 
-  async function onSubmit(data: PriceFormValues) {
+  async function onSubmit(data: any) {
     setIsSubmitting(true);
     try {
         const stationImageUri = data.stationImage?.[0] ? await fileToDataUri(data.stationImage[0]) : undefined;
         
         const competitorsWithImages = await Promise.all(
-            data.competitors.map(async (c) => {
+            data.competitors.map(async (c: any) => {
                 const imageUri = c.image?.[0] ? await fileToDataUri(c.image[0]) : undefined;
                 return { ...c, image: imageUri };
             })
@@ -216,7 +260,7 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
         };
 
         console.log('Dados do formulário para envio:', submissionData);
-        const result = await submitPrices(submissionData);
+        const result = await submitPrices(submissionData as any);
 
         if (result.success) {
             setShowSuccessDialog(true);
@@ -299,7 +343,7 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
                     <FormItem>
                       <FormLabel>Etanol (R$)</FormLabel>
                       <FormControl>
-                        <Input type="number" step="0.001" placeholder="0.000" {...field} disabled={stationNoChange} />
+                        <PriceInput {...field} disabled={stationNoChange} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -312,7 +356,7 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
                     <FormItem>
                       <FormLabel>Gasolina Comum (R$)</FormLabel>
                       <FormControl>
-                        <Input type="number" step="0.001" placeholder="0.000" {...field} disabled={stationNoChange} />
+                        <PriceInput {...field} disabled={stationNoChange} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -325,7 +369,7 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
                     <FormItem>
                       <FormLabel>Gasolina Aditivada (R$)</FormLabel>
                       <FormControl>
-                        <Input type="number" step="0.001" placeholder="0.000" {...field} disabled={stationNoChange} />
+                        <PriceInput {...field} disabled={stationNoChange} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -338,7 +382,7 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
                     <FormItem>
                       <FormLabel>Diesel S-10 (R$)</FormLabel>
                       <FormControl>
-                        <Input type="number" step="0.001" placeholder="0.000" {...field} disabled={stationNoChange} />
+                        <PriceInput {...field} disabled={stationNoChange} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -397,7 +441,7 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
                         <FormItem>
                           <FormLabel>Etanol (R$)</FormLabel>
                           <FormControl>
-                            <Input type="number" step="0.001" placeholder="0.000" {...field} disabled={competitorNoChange} />
+                            <PriceInput {...field} disabled={competitorNoChange} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -410,7 +454,7 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
                         <FormItem>
                           <FormLabel>Gasolina Comum (R$)</FormLabel>
                           <FormControl>
-                            <Input type="number" step="0.001" placeholder="0.000" {...field} disabled={competitorNoChange} />
+                            <PriceInput {...field} disabled={competitorNoChange} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -423,7 +467,7 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
                         <FormItem>
                           <FormLabel>Gasolina Aditivada (R$)</FormLabel>
                           <FormControl>
-                            <Input type="number" step="0.001" placeholder="0.000" {...field} disabled={competitorNoChange} />
+                            <PriceInput {...field} disabled={competitorNoChange} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -436,7 +480,7 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
                         <FormItem>
                           <FormLabel>Diesel S-10 (R$)</FormLabel>
                           <FormControl>
-                            <Input type="number" step="0.001" placeholder="0.000" {...field} disabled={competitorNoChange} />
+                            <PriceInput {...field} disabled={competitorNoChange} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
