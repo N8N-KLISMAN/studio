@@ -29,6 +29,7 @@ export default function DashboardPage() {
         setStation(foundStation);
         setManagerId(storedManagerId);
       } else {
+        // Clear invalid data and redirect
         localStorage.removeItem('stationId');
         localStorage.removeItem('managerId');
         router.replace('/login');
@@ -46,8 +47,12 @@ export default function DashboardPage() {
   if (isLoading || !station || !managerId) {
     return (
       <div className="container mx-auto p-4 md:p-8">
-        <Skeleton className="h-8 w-1/4 mb-4" />
-        <Skeleton className="h-6 w-1/2 mb-8" />
+        <div className="flex justify-between items-center mb-4">
+          <Skeleton className="h-10 w-48" />
+          <Skeleton className="h-10 w-10" />
+        </div>
+        <Skeleton className="h-8 w-1/2 mb-2" />
+        <Skeleton className="h-6 w-3/4 mb-8" />
         <div className="space-y-4">
           <Skeleton className="h-40 w-full" />
           <Skeleton className="h-40 w-full" />
