@@ -1,3 +1,4 @@
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -30,10 +31,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from './ui/alert-dialog';
-import { useState } from 'react';
-import { Camera, CheckCircle2, Leaf, Loader2, MapPin, Warehouse } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Camera, CheckCircle2, Leaf, Loader2, Warehouse, X } from 'lucide-react';
 import { Separator } from './ui/separator';
 import { Checkbox } from './ui/checkbox';
+import Image from 'next/image';
 
 const MAX_FILE_SIZE = 5000000;
 const ACCEPTED_IMAGE_TYPES = [
@@ -97,21 +99,61 @@ interface PriceFormProps {
   managerId: string;
 }
 
-const FileUploadArea = ({ field, stationName }: { field: any, stationName: string }) => (
-    <FormItem className="col-span-1 md:col-span-2">
-        <FormLabel className="sr-only">Anexar foto da placa de {stationName}</FormLabel>
-        <FormControl>
-            <div className="relative border-2 border-dashed border-muted-foreground/50 rounded-lg p-6 text-center hover:border-primary transition-colors">
-                <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
-                    <Camera className="h-8 w-8" />
-                    <span>Anexar foto da placa do {stationName}</span>
-                    <Input type="file" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" {...field} />
+const ImageUpload = ({ field, label, id }: { field: any, label: string, id: string }) => {
+    const [preview, setPreview] = useState<string | null>(null);
+    const file = field.value?.[0];
+
+    useEffect(() => {
+        if (file) {
+            const url = URL.createObjectURL(file);
+            setPreview(url);
+            return () => URL.revokeObjectURL(url);
+        }
+        setPreview(null);
+    }, [file]);
+
+    const handleRemoveImage = (e: React.MouseEvent<HTMLButtonElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
+        field.onChange(null);
+    };
+
+    return (
+        <div className="border-2 border-dashed border-muted rounded-lg p-4 text-center">
+            {preview ? (
+                <div className="relative w-full h-32">
+                    <Image src={preview} alt="Pré-visualização" layout="fill" objectFit="contain" className="rounded-md" />
+                    <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
+                        onClick={handleRemoveImage}
+                    >
+                        <X className="h-4 w-4" />
+                    </Button>
                 </div>
-            </div>
-        </FormControl>
-        <FormMessage />
-    </FormItem>
-);
+            ) : (
+                <div className="flex flex-col items-center justify-center text-muted-foreground">
+                    <Camera className="h-6 w-6 mb-2" />
+                    <FormLabel htmlFor={id} className="cursor-pointer">
+                        {label}
+                    </FormLabel>
+                    <FormControl>
+                        <Input
+                            id={id}
+                            type="file"
+                            className="sr-only"
+                            onChange={(e) => field.onChange(e.target.files)}
+                            accept={ACCEPTED_IMAGE_TYPES.join(',')}
+                        />
+                    </FormControl>
+                    <FormMessage />
+                </div>
+            )}
+        </div>
+    );
+};
 
 export function PriceForm({ station, period, managerId }: PriceFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -121,6 +163,7 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
     resolver: zodResolver(priceFormSchema),
     defaultValues: {
       stationPrices: {},
+      stationNoChange: false,
       competitors: station.competitors.map((c) => ({
         ...c,
         prices: {},
@@ -152,7 +195,17 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
     console.log('Dados do formulário para envio:', submissionData);
     setIsSubmitting(false);
     setShowSuccessDialog(true);
-    form.reset();
+    form.reset({
+        stationPrices: {},
+        stationNoChange: false,
+        stationImage: undefined,
+        competitors: station.competitors.map((c) => ({
+            ...c,
+            prices: {},
+            noChange: false,
+            image: undefined
+          })),
+    });
   }
 
   return (
@@ -167,24 +220,13 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-                <div className="border-2 border-dashed border-muted rounded-lg p-4 text-center">
-                    <FormField
-                        control={form.control}
-                        name="stationImage"
-                        render={({ field }) => (
-                            <div className="flex flex-col items-center justify-center text-muted-foreground">
-                                <Camera className="h-6 w-6 mb-2" />
-                                <FormLabel htmlFor="stationImage" className="cursor-pointer">
-                                  Anexar foto da placa do posto atual
-                                </FormLabel>
-                                <FormControl>
-                                    <Input id="stationImage" type="file" className="sr-only" {...form.register('stationImage')} />
-                                </FormControl>
-                                <FormMessage />
-                            </div>
-                        )}
-                    />
-                </div>
+                <FormField
+                    control={form.control}
+                    name="stationImage"
+                    render={({ field }) => (
+                        <ImageUpload field={field} label="Anexar foto da placa do posto atual" id="stationImage" />
+                    )}
+                />
               <FormField
                 control={form.control}
                 name="stationNoChange"
@@ -274,24 +316,13 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                 <div className="border-2 border-dashed border-muted rounded-lg p-4 text-center">
                     <FormField
                         control={form.control}
                         name={`competitors.${index}.image`}
                         render={({ field: formField }) => (
-                            <div className="flex flex-col items-center justify-center text-muted-foreground">
-                                <Camera className="h-6 w-6 mb-2" />
-                                <FormLabel htmlFor={`competitors.${index}.image`} className="cursor-pointer">
-                                  Anexar foto da placa do {field.name}
-                                </FormLabel>
-                                <FormControl>
-                                    <Input id={`competitors.${index}.image`} type="file" className="sr-only" {...form.register(`competitors.${index}.image`)} />
-                                </FormControl>
-                                <FormMessage />
-                            </div>
+                           <ImageUpload field={formField} label={`Anexar foto da placa do ${field.name}`} id={`competitors.${index}.image`} />
                         )}
                     />
-                  </div>
                   <FormField
                     control={form.control}
                     name={`competitors.${index}.noChange`}
@@ -402,3 +433,5 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
     </>
   );
 }
+
+    
