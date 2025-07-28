@@ -17,7 +17,6 @@ import { Input } from '@/components/ui/input';
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
@@ -32,8 +31,9 @@ import {
   AlertDialogTitle,
 } from './ui/alert-dialog';
 import { useState } from 'react';
-import { CheckCircle2, Loader2, Upload } from 'lucide-react';
+import { Camera, CheckCircle2, Loader2, MapPin } from 'lucide-react';
 import { Separator } from './ui/separator';
+import { Checkbox } from './ui/checkbox';
 
 const MAX_FILE_SIZE = 5000000;
 const ACCEPTED_IMAGE_TYPES = [
@@ -43,8 +43,16 @@ const ACCEPTED_IMAGE_TYPES = [
   'image/webp',
 ];
 
+const priceSchema = z.object({
+  etanol: z.coerce.number({ invalid_type_error: "Deve ser um número" }).positive("O preço deve ser positivo").optional(),
+  gasolinaComum: z.coerce.number({ invalid_type_error: "Deve ser um número" }).positive("O preço deve ser positivo").optional(),
+  gasolinaAditivada: z.coerce.number({ invalid_type_error: "Deve ser um número" }).positive("O preço deve ser positivo").optional(),
+  dieselS10: z.coerce.number({ invalid_type_error: "Deve ser um número" }).positive("O preço deve ser positivo").optional(),
+});
+
 const priceFormSchema = z.object({
-  stationPrice: z.coerce.number({ invalid_type_error: "Deve ser um número" }).positive("O preço deve ser positivo"),
+  stationPrices: priceSchema,
+  stationNoChange: z.boolean().default(false),
   stationImage: z
     .any()
     .refine((files) => files?.length <= 1, 'Apenas uma imagem é permitida.')
@@ -62,7 +70,8 @@ const priceFormSchema = z.object({
     z.object({
       id: z.string(),
       name: z.string(),
-      price: z.coerce.number({ invalid_type_error: "Deve ser um número" }).positive("O preço deve ser positivo"),
+      prices: priceSchema,
+      noChange: z.boolean().default(false),
       image: z
         .any()
         .refine((files) => files?.length <= 1, 'Apenas uma imagem é permitida.')
@@ -88,6 +97,22 @@ interface PriceFormProps {
   managerId: string;
 }
 
+const FileUploadArea = ({ field, stationName }: { field: any, stationName: string }) => (
+    <FormItem className="col-span-1 md:col-span-2">
+        <FormLabel className="sr-only">Anexar foto da placa de {stationName}</FormLabel>
+        <FormControl>
+            <div className="relative border-2 border-dashed border-muted-foreground/50 rounded-lg p-6 text-center hover:border-primary transition-colors">
+                <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
+                    <Camera className="h-8 w-8" />
+                    <span>Anexar foto da placa do {stationName}</span>
+                    <Input type="file" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" {...field} />
+                </div>
+            </div>
+        </FormControl>
+        <FormMessage />
+    </FormItem>
+);
+
 export function PriceForm({ station, period, managerId }: PriceFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
@@ -95,10 +120,11 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
   const form = useForm<PriceFormValues>({
     resolver: zodResolver(priceFormSchema),
     defaultValues: {
-      stationPrice: undefined,
+      stationPrices: {},
       competitors: station.competitors.map((c) => ({
         ...c,
-        price: undefined,
+        prices: {},
+        noChange: false,
       })),
     },
   });
@@ -107,6 +133,8 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
     name: 'competitors',
     control: form.control,
   });
+
+  const stationNoChange = form.watch('stationNoChange');
 
   async function onSubmit(data: PriceFormValues) {
     setIsSubmitting(true);
@@ -133,80 +161,219 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 mt-4">
           <Card>
             <CardHeader>
-              <CardTitle className="text-primary">{station.name} (Seu Posto)</CardTitle>
-              <CardDescription>
-                Informe o preço e anexe uma foto do seu posto.
-              </CardDescription>
+              <CardTitle className="flex items-center gap-2 text-primary">
+                <MapPin className="h-6 w-6"/>
+                {station.name}
+              </CardTitle>
             </CardHeader>
-            <CardContent className="grid md:grid-cols-2 gap-6">
+            <CardContent className="space-y-6">
+                <div className="border-2 border-dashed border-muted rounded-lg p-4 text-center">
+                    <FormField
+                        control={form.control}
+                        name="stationImage"
+                        render={({ field }) => (
+                            <div className="flex flex-col items-center justify-center text-muted-foreground">
+                                <Camera className="h-6 w-6 mb-2" />
+                                <FormLabel htmlFor="stationImage" className="cursor-pointer">
+                                  Anexar foto da placa do posto atual
+                                </FormLabel>
+                                <FormControl>
+                                    <Input id="stationImage" type="file" className="sr-only" {...form.register('stationImage')} />
+                                </FormControl>
+                                <FormMessage />
+                            </div>
+                        )}
+                    />
+                </div>
               <FormField
                 control={form.control}
-                name="stationPrice"
+                name="stationNoChange"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Preço do Combustível</FormLabel>
+                  <FormItem className="flex flex-row items-center space-x-3 space-y-0">
                     <FormControl>
-                      <Input type="number" step="0.01" placeholder="Ex: 5.49" {...field} />
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
                     </FormControl>
-                    <FormMessage />
+                    <FormLabel className="font-normal">
+                      Não houve alteração nos preços hoje
+                    </FormLabel>
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="stationImage"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Foto do Preço (Opcional)</FormLabel>
-                    <FormControl>
-                       <Input type="file" {...form.register('stationImage')} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="stationPrices.etanol"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Etanol (R$)</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="0.001" placeholder="0.000" {...field} disabled={stationNoChange} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="stationPrices.gasolinaComum"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Gasolina Comum (R$)</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="0.001" placeholder="0.000" {...field} disabled={stationNoChange} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="stationPrices.gasolinaAditivada"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Gasolina Aditivada (R$)</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="0.001" placeholder="0.000" {...field} disabled={stationNoChange} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="stationPrices.dieselS10"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Diesel S-10 (R$)</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="0.001" placeholder="0.000" {...field} disabled={stationNoChange} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
             </CardContent>
           </Card>
 
-          <Separator/>
+          <Separator />
 
-          <div className="space-y-4">
-             <h3 className="text-xl font-semibold text-foreground">Concorrentes</h3>
-            {fields.map((field, index) => (
+          <div className="space-y-6">
+            {fields.map((field, index) => {
+              const competitorNoChange = form.watch(`competitors.${index}.noChange`);
+              const CompetitorIcon = () => (
+                <svg width="24" height="24" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M16 11.9573C16 11.9573 17.7619 13.5427 22.8889 13.5427C28.0159 13.5427 29.7778 11.9573 29.7778 11.9573L29.7778 4L16 4L16 11.9573Z" fill="#2F88FF" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M16 29.7778V44H29.7778V29.7778" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M16 13.5427V29.7778H29.7778V13.5427" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M22.8889 13.5427C22.8889 16.5919 20.3708 19.1111 17.3216 19.1111" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              );
+              
+              return (
               <Card key={field.id}>
                 <CardHeader>
-                  <CardTitle>{field.name}</CardTitle>
+                  <CardTitle className="flex items-center gap-2 text-green-400">
+                    <CompetitorIcon />
+                    {field.name}
+                  </CardTitle>
                 </CardHeader>
-                <CardContent className="grid md:grid-cols-2 gap-6">
+                <CardContent className="space-y-6">
+                 <div className="border-2 border-dashed border-muted rounded-lg p-4 text-center">
+                    <FormField
+                        control={form.control}
+                        name={`competitors.${index}.image`}
+                        render={({ field: formField }) => (
+                            <div className="flex flex-col items-center justify-center text-muted-foreground">
+                                <Camera className="h-6 w-6 mb-2" />
+                                <FormLabel htmlFor={`competitors.${index}.image`} className="cursor-pointer">
+                                  Anexar foto da placa do {field.name}
+                                </FormLabel>
+                                <FormControl>
+                                    <Input id={`competitors.${index}.image`} type="file" className="sr-only" {...form.register(`competitors.${index}.image`)} />
+                                </FormControl>
+                                <FormMessage />
+                            </div>
+                        )}
+                    />
+                  </div>
                   <FormField
                     control={form.control}
-                    name={`competitors.${index}.price`}
+                    name={`competitors.${index}.noChange`}
                     render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Preço do Concorrente</FormLabel>
+                      <FormItem className="flex flex-row items-center space-x-3 space-y-0">
                         <FormControl>
-                          <Input type="number" step="0.01" placeholder="Ex: 5.52" {...field} />
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
                         </FormControl>
-                        <FormMessage />
+                        <FormLabel className="font-normal">
+                          Este concorrente não alterou os preços
+                        </FormLabel>
                       </FormItem>
                     )}
                   />
-                  <FormField
-                    control={form.control}
-                    name={`competitors.${index}.image`}
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Foto do Preço (Opcional)</FormLabel>
-                        <FormControl>
-                          <Input type="file" {...form.register(`competitors.${index}.image`)} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name={`competitors.${index}.prices.etanol`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Etanol (R$)</FormLabel>
+                          <FormControl>
+                            <Input type="number" step="0.001" placeholder="0.000" {...field} disabled={competitorNoChange} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name={`competitors.${index}.prices.gasolinaComum`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Gasolina Comum (R$)</FormLabel>
+                          <FormControl>
+                            <Input type="number" step="0.001" placeholder="0.000" {...field} disabled={competitorNoChange} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name={`competitors.${index}.prices.gasolinaAditivada`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Gasolina Aditivada (R$)</FormLabel>
+                          <FormControl>
+                            <Input type="number" step="0.001" placeholder="0.000" {...field} disabled={competitorNoChange} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name={`competitors.${index}.prices.dieselS10`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Diesel S-10 (R$)</FormLabel>
+                          <FormControl>
+                            <Input type="number" step="0.001" placeholder="0.000" {...field} disabled={competitorNoChange} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                 </CardContent>
               </Card>
-            ))}
+            )})}
           </div>
 
           <Button type="submit" className="w-full text-lg" disabled={isSubmitting}>
