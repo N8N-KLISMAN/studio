@@ -29,7 +29,6 @@ export default function DashboardPage() {
         setStation(foundStation);
         setManagerId(storedManagerId);
       } else {
-        // Handle case where station ID from local storage is invalid
         localStorage.removeItem('stationId');
         localStorage.removeItem('managerId');
         router.replace('/login');
@@ -58,16 +57,16 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen">
-      <header className="bg-card shadow-md">
+    <div className="min-h-screen bg-background font-sans">
+      <header className="bg-card shadow-sm border-b border-border">
         <div className="container mx-auto flex h-16 items-center justify-between p-4">
           <Logo />
           <div className="flex items-center gap-4">
             <div className="text-right hidden sm:block">
-              <p className="font-semibold">{managerId}</p>
+              <p className="font-semibold text-foreground">{managerId}</p>
               <p className="text-sm text-muted-foreground">{station.name}</p>
             </div>
-            <Button variant="ghost" size="icon" onClick={handleLogout} aria-label="Sair">
+            <Button variant="ghost" size="icon" onClick={handleLogout} aria-label="Sair" className="text-foreground hover:text-primary">
               <LogOut className="h-5 w-5" />
             </Button>
           </div>
@@ -76,7 +75,7 @@ export default function DashboardPage() {
 
       <main className="container mx-auto p-4 md:p-8">
         <div className="mb-8 text-center md:text-left">
-          <h1 className="text-3xl font-bold tracking-tight text-primary">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
             Registro de Preços Diário
           </h1>
           <p className="text-lg text-muted-foreground">

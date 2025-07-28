@@ -130,8 +130,8 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
   return (
     <>
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-          <Card className="border-primary border-2 shadow-lg">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 mt-4">
+          <Card>
             <CardHeader>
               <CardTitle className="text-primary">{station.name} (Seu Posto)</CardTitle>
               <CardDescription>
@@ -171,9 +171,9 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
           <Separator/>
 
           <div className="space-y-4">
-             <h3 className="text-lg font-medium">Concorrentes</h3>
+             <h3 className="text-xl font-semibold text-foreground">Concorrentes</h3>
             {fields.map((field, index) => (
-              <Card key={field.id} className="bg-card/80">
+              <Card key={field.id}>
                 <CardHeader>
                   <CardTitle>{field.name}</CardTitle>
                 </CardHeader>
@@ -225,8 +225,8 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
       <AlertDialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <CheckCircle2 className="h-6 w-6 text-green-500" />
+            <AlertDialogTitle className="flex items-center gap-2 text-green-500">
+              <CheckCircle2 className="h-6 w-6" />
               Sucesso!
             </AlertDialogTitle>
             <AlertDialogDescription>
