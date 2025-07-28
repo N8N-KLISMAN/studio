@@ -36,6 +36,8 @@ import { Camera, CheckCircle2, Leaf, Loader2, Warehouse, X } from 'lucide-react'
 import { Separator } from './ui/separator';
 import { Checkbox } from './ui/checkbox';
 import Image from 'next/image';
+import { submitPrices } from '@/ai/flows/submit-prices-flow';
+import { useToast } from '@/hooks/use-toast';
 
 const MAX_FILE_SIZE = 5000000;
 const ACCEPTED_IMAGE_TYPES = [
@@ -99,6 +101,15 @@ interface PriceFormProps {
   managerId: string;
 }
 
+const fileToDataUri = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+};
+
 const ImageUpload = ({ field, label, id }: { field: any, label: string, id: string }) => {
     const [preview, setPreview] = useState<string | null>(null);
     const file = field.value?.[0];
@@ -115,7 +126,8 @@ const ImageUpload = ({ field, label, id }: { field: any, label: string, id: stri
     const handleRemoveImage = (e: React.MouseEvent<HTMLButtonElement>) => {
         e.preventDefault();
         e.stopPropagation();
-        field.onChange(null);
+        const dt = new DataTransfer();
+        field.onChange(dt.files);
     };
 
     return (
@@ -158,6 +170,7 @@ const ImageUpload = ({ field, label, id }: { field: any, label: string, id: stri
 export function PriceForm({ station, period, managerId }: PriceFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const { toast } = useToast();
 
   const form = useForm<PriceFormValues>({
     resolver: zodResolver(priceFormSchema),
@@ -181,31 +194,64 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
 
   async function onSubmit(data: PriceFormValues) {
     setIsSubmitting(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    try {
+        const stationImageUri = data.stationImage?.[0] ? await fileToDataUri(data.stationImage[0]) : undefined;
+        
+        const competitorsWithImages = await Promise.all(
+            data.competitors.map(async (c) => {
+                const imageUri = c.image?.[0] ? await fileToDataUri(c.image[0]) : undefined;
+                return { ...c, image: imageUri };
+            })
+        );
 
-    const submissionData = {
-      managerId,
-      stationId: station.id,
-      period,
-      submittedAt: new Date().toISOString(),
-      ...data,
-    };
+        const submissionData = {
+            managerId,
+            stationId: station.id,
+            period,
+            submittedAt: new Date().toISOString(),
+            stationPrices: data.stationPrices,
+            stationNoChange: data.stationNoChange,
+            stationImage: stationImageUri,
+            competitors: competitorsWithImages,
+        };
 
-    console.log('Dados do formulário para envio:', submissionData);
-    setIsSubmitting(false);
-    setShowSuccessDialog(true);
-    form.reset({
-        stationPrices: {},
-        stationNoChange: false,
-        stationImage: undefined,
-        competitors: station.competitors.map((c) => ({
-            ...c,
-            prices: {},
-            noChange: false,
-            image: undefined
-          })),
-    });
+        console.log('Dados do formulário para envio:', submissionData);
+        const result = await submitPrices(submissionData);
+
+        if (result.success) {
+            setShowSuccessDialog(true);
+            form.reset({
+                stationPrices: {},
+                stationNoChange: false,
+                stationImage: undefined,
+                competitors: station.competitors.map((c) => ({
+                    ...c,
+                    prices: {},
+                    noChange: false,
+                    image: undefined
+                })),
+            });
+            // Clear file inputs manually if reset doesn't work as expected
+            const fileInputs = document.querySelectorAll('input[type="file"]');
+            fileInputs.forEach(input => (input as HTMLInputElement).value = '');
+
+        } else {
+            toast({
+                variant: 'destructive',
+                title: 'Erro ao Enviar',
+                description: result.message,
+            });
+        }
+    } catch (error) {
+        console.error('Erro no envio do formulário:', error);
+        toast({
+            variant: 'destructive',
+            title: 'Erro Inesperado',
+            description: 'Ocorreu um erro inesperado. Tente novamente mais tarde.',
+        });
+    } finally {
+        setIsSubmitting(false);
+    }
   }
 
   return (

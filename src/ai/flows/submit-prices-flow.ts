@@ -1,0 +1,80 @@
+
+'use server';
+/**
+ * @fileOverview A flow to handle price submissions from the form.
+ *
+ * - submitPrices - A function that handles the price submission process.
+ * - SubmitPricesInput - The input type for the submitPrices function.
+ * - SubmitPricesOutput - The return type for the submitPrices function.
+ */
+
+import { ai } from '@/ai/genkit';
+import { z } from 'zod';
+
+const PriceSchema = z.object({
+  etanol: z.coerce.number().optional(),
+  gasolinaComum: z.coerce.number().optional(),
+  gasolinaAditivada: z.coerce.number().optional(),
+  dieselS10: z.coerce.number().optional(),
+});
+
+const CompetitorSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  prices: PriceSchema,
+  noChange: z.boolean().default(false),
+  image: z
+    .string()
+    .describe(
+      "A photo of the competitor's price board, as a data URI."
+    ).optional(),
+});
+
+export const SubmitPricesInputSchema = z.object({
+  managerId: z.string(),
+  stationId: z.string(),
+  period: z.string(),
+  submittedAt: z.string(),
+  stationPrices: PriceSchema,
+  stationNoChange: z.boolean().default(false),
+  stationImage: z
+    .string()
+    .describe(
+        "A photo of the station's price board, as a data URI."
+    ).optional(),
+  competitors: z.array(CompetitorSchema),
+});
+
+export type SubmitPricesInput = z.infer<typeof SubmitPricesInputSchema>;
+
+export const SubmitPricesOutputSchema = z.object({
+  success: z.boolean(),
+  message: z.string(),
+});
+
+export type SubmitPricesOutput = z.infer<typeof SubmitPricesOutputSchema>;
+
+export async function submitPrices(
+  input: SubmitPricesInput
+): Promise<SubmitPricesOutput> {
+  return submitPricesFlow(input);
+}
+
+const submitPricesFlow = ai.defineFlow(
+  {
+    name: 'submitPricesFlow',
+    inputSchema: SubmitPricesInputSchema,
+    outputSchema: SubmitPricesOutputSchema,
+  },
+  async (input) => {
+    console.log('Received price submission:', JSON.stringify(input, null, 2));
+
+    // Here you would typically save the data to a database like Firestore.
+    // For now, we'll just simulate a successful submission.
+
+    return {
+      success: true,
+      message: 'Dados enviados com sucesso!',
+    };
+  }
+);
