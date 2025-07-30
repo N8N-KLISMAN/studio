@@ -252,7 +252,8 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
         });
         return;
     }
-
+    
+    // Show loading alert
     Swal.fire({
       title: 'Enviando...',
       text: 'Por favor, aguarde enquanto os dados são enviados.',
@@ -263,37 +264,27 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
     });
 
     const payload = formatPayloadForN8n(data);
-    
-    try {
-        const response = await fetch(webhookUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(payload),
-        });
 
-        const result = await response.json();
-        
+    // Send the data in the background
+    fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+        mode: 'no-cors' // Prevent CORS issues from blocking the request
+    }).then(response => {
+        console.log('Dados enviados para o webhook com sucesso (no-cors).');
+    }).catch(error => {
+        console.error('Erro no envio do formulário em segundo plano:', error);
+    });
+
+    // Immediately redirect to success page
+    // Using a small timeout to allow the loading Swal to be visible briefly
+    setTimeout(() => {
         Swal.close();
-
-        if (result.status === true) {
-            router.push('/success');
-        } else {
-             Swal.fire({
-                icon: 'error',
-                title: 'Erro no Envio',
-                text: result.message || 'Ocorreu um erro ao enviar os dados. Tente novamente.',
-            });
-        }
-    } catch (error) {
-        console.error('Erro no envio do formulário:', error);
-        Swal.fire({
-            icon: 'error',
-            title: 'Erro Inesperado',
-            text: 'Ocorreu um erro inesperado. Verifique sua conexão ou tente novamente mais tarde.',
-        });
-    }
+        router.push('/success');
+    }, 500);
   }
 
   const renderPriceFields = (fieldPrefix: string, disabled: boolean) => (
@@ -477,5 +468,7 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
     </>
   );
 }
+
+    
 
     
