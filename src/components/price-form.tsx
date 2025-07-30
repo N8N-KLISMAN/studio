@@ -31,12 +31,13 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import Swal from 'sweetalert2';
 
+const REQUIRED_FIELD_MESSAGE = "Preencha Aqui!";
 
 const photoSchema = z.object({
-    dataUri: z.string().min(1, "A foto é obrigatória."),
+    dataUri: z.string().min(1, REQUIRED_FIELD_MESSAGE),
 });
 
-const priceValueSchema = z.string().refine(val => val.trim().length > 0, { message: 'Preço obrigatório' });
+const priceValueSchema = z.string().refine(val => val.trim().length > 0, { message: REQUIRED_FIELD_MESSAGE });
 
 const priceSchema = z.object({
     etanol: priceValueSchema,
@@ -86,7 +87,7 @@ const priceFormSchema = z.object({
                 ctx.addIssue({
                     code: z.ZodIssueCode.custom,
                     path: ['stationPrices', 'vista', ...err.path],
-                    message: err.message,
+                    message: REQUIRED_FIELD_MESSAGE,
                 })
             })
         }
@@ -96,7 +97,7 @@ const priceFormSchema = z.object({
                 ctx.addIssue({
                     code: z.ZodIssueCode.custom,
                     path: ['stationPrices', 'prazo', ...err.path],
-                    message: err.message,
+                    message: REQUIRED_FIELD_MESSAGE,
                 })
             })
         }
@@ -108,7 +109,7 @@ const priceFormSchema = z.object({
              ctx.addIssue({
                 code: z.ZodIssueCode.custom,
                 path: [`competitors`, index, 'photo', 'dataUri'],
-                message: "A foto do concorrente é obrigatória.",
+                message: REQUIRED_FIELD_MESSAGE,
             });
         }
         if (!competitor.noChange) {
@@ -118,7 +119,7 @@ const priceFormSchema = z.object({
                     ctx.addIssue({
                         code: z.ZodIssueCode.custom,
                         path: [`competitors`, index, 'prices', 'vista', ...err.path],
-                        message: err.message,
+                        message: REQUIRED_FIELD_MESSAGE,
                     })
                 })
             }
@@ -128,7 +129,7 @@ const priceFormSchema = z.object({
                     ctx.addIssue({
                         code: z.ZodIssueCode.custom,
                         path: [`competitors`, index, 'prices', 'prazo', ...err.path],
-                        message: err.message,
+                        message: REQUIRED_FIELD_MESSAGE,
                     })
                 })
             }
@@ -297,6 +298,15 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
     return payload;
 };
 
+const onFormError = (errors: any) => {
+    console.log("Form errors:", errors);
+    Swal.fire({
+      icon: 'warning',
+      title: 'Atenção!',
+      text: 'Existem campos obrigatórios não preenchidos. Por favor, verifique os campos marcados em vermelho.',
+      confirmButtonColor: '#16a34a'
+    });
+};
 
   async function onSubmit(data: PriceFormValues) {
     const webhookUrl = process.env.NEXT_PUBLIC_WEBHOOK_URL;
@@ -404,7 +414,7 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
   return (
     <>
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 mt-4">
+        <form onSubmit={form.handleSubmit(onSubmit, onFormError)} className="space-y-8 mt-4">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-primary">
