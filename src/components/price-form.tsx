@@ -145,19 +145,24 @@ const PriceInput = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLIn
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         let value = e.target.value.replace(/[^0-9,]/g, '');
         
-        // Remove multiple commas
         const commaCount = (value.match(/,/g) || []).length;
         if (commaCount > 1) {
             const firstCommaIndex = value.indexOf(',');
             value = value.substring(0, firstCommaIndex + 1) + value.substring(firstCommaIndex + 1).replace(/,/g, '');
         }
 
-        // Ensure comma has at most 2 decimal places
         if (value.includes(',')) {
             const parts = value.split(',');
             if (parts[1] && parts[1].length > 2) {
                 parts[1] = parts[1].substring(0, 2);
-                value = parts.join(',');
+            }
+             if (parts[0].length > 2) {
+                parts[0] = parts[0].substring(0, 2);
+            }
+            value = parts.join(',');
+        } else {
+            if (value.length > 2) {
+                value = value.substring(0, 2);
             }
         }
 
