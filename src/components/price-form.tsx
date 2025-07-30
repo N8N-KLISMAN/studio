@@ -43,8 +43,6 @@ import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 
 const photoSchema = z.object({
     dataUri: z.string(),
-    latitude: z.number().optional(),
-    longitude: z.number().optional(),
 });
 
 const priceSchema = z.object({
@@ -133,31 +131,7 @@ const PhotoCapture = ({ field, label, id }: { field: any, label: string, id: str
         const reader = new FileReader();
         reader.onload = (e) => {
             const dataUri = e.target?.result as string;
-            
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition((position) => {
-                    field.onChange({
-                        dataUri,
-                        latitude: position.coords.latitude,
-                        longitude: position.coords.longitude,
-                    });
-                }, (error) => {
-                    console.error("Error getting geolocation:", error);
-                    toast({
-                        variant: "destructive",
-                        title: "Erro de Geolocalização",
-                        description: "Não foi possível obter sua localização. A foto será salva sem essa informação."
-                    });
-                    field.onChange({ dataUri }); 
-                }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 10000 });
-            } else {
-                 toast({
-                    variant: "destructive",
-                    title: "Geolocalização não suportada",
-                    description: "Seu navegador não suporta geolocalização. A foto será salva sem essa informação."
-                });
-                field.onChange({ dataUri });
-            }
+            field.onChange({ dataUri });
         };
         reader.readAsDataURL(file);
     };
@@ -187,12 +161,6 @@ const PhotoCapture = ({ field, label, id }: { field: any, label: string, id: str
                             <X className="h-4 w-4" />
                         </Button>
                     </div>
-                    {photoValue.latitude && photoValue.longitude && (
-                        <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
-                            <MapPin className="h-3 w-3" />
-                            <span>{photoValue.latitude.toFixed(5)}, {photoValue.longitude.toFixed(5)}</span>
-                        </div>
-                    )}
                 </div>
             ) : (
                 <>

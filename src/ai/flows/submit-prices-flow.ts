@@ -25,8 +25,6 @@ const AllPricesSchema = z.object({
 
 const PhotoSchema = z.object({
     dataUri: z.string().describe("The photo as a data URI."),
-    latitude: z.number().optional(),
-    longitude: z.number().optional(),
 })
 
 const CompetitorSchema = z.object({
@@ -35,8 +33,6 @@ const CompetitorSchema = z.object({
   prices: AllPricesSchema,
   noChange: z.boolean().default(false),
   image: PhotoSchema.optional(),
-  latitude: z.number().optional(),
-  longitude: z.number().optional(),
 });
 
 const SubmitPricesInputSchema = z.object({
@@ -47,8 +43,6 @@ const SubmitPricesInputSchema = z.object({
   stationPrices: AllPricesSchema,
   stationNoChange: z.boolean().default(false),
   stationImage: PhotoSchema.optional(),
-  stationLatitude: z.number().optional(),
-  stationLongitude: z.number().optional(),
   competitors: z.array(CompetitorSchema),
 });
 
@@ -74,10 +68,8 @@ const submitPricesFlow = ai.defineFlow(
     outputSchema: SubmitPricesOutputSchema,
   },
   async (input) => {
-    // Extract geolocation from the photo objects and place it at the top level
+    // Extract just the dataUri from the photo objects
     const stationImage = input.stationImage?.dataUri;
-    const stationLatitude = input.stationImage?.latitude;
-    const stationLongitude = input.stationImage?.longitude;
 
     const competitors = input.competitors.map(c => {
         return {
@@ -86,16 +78,12 @@ const submitPricesFlow = ai.defineFlow(
             prices: c.prices,
             noChange: c.noChange,
             image: c.image?.dataUri,
-            latitude: c.image?.latitude,
-            longitude: c.image?.longitude,
         }
     });
 
     const processedInput = {
         ...input,
         stationImage,
-        stationLatitude,
-        stationLongitude,
         competitors,
     };
     
