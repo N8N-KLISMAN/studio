@@ -1,36 +1,55 @@
 export function Logo() {
   return (
-    <div className="flex items-center justify-center gap-2">
+    <div className="flex items-center justify-center gap-3">
       <svg
-        width="32"
-        height="32"
-        viewBox="0 0 48 48"
+        width="36"
+        height="36"
+        viewBox="0 0 100 100"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
       >
-        <circle cx="24" cy="24" r="20" fill="hsl(var(--primary))" />
         <path
-          d="M24 8C15.1634 8 8 15.1634 8 24C8 32.8366 15.1634 40 24 40C32.8366 40 40 32.8366 40 24C40 15.1634 32.8366 8 24 8Z"
-          stroke="hsl(var(--secondary))"
-          strokeWidth="3"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+          d="M50 2C76.5 2 98 23.5 98 50C98 76.5 76.5 98 50 98C23.5 98 2 76.5 2 50C2 23.5 23.5 2 50 2Z"
+          fill="url(#paint0_linear_1)"
         />
         <path
-          d="M24 34C28.4183 34 32 30.4183 32 26C32 23.9554 31.1822 22.0935 29.8983 20.7383C28.6144 19.383 26.4183 18 24 18C21.5817 18 19.3856 19.383 18.1017 20.7383C16.8178 22.0935 16 23.9554 16 26C16 30.4183 19.5817 34 24 34Z"
-          fill="hsl(var(--secondary))"
-          stroke="hsl(var(--primary-foreground))"
-          strokeWidth="2"
+          d="M68 20C57 24 50 35 50 35C50 35 43 24 32 20C19 15 15 32 15 32C15 32 20 45 34 51V72C34 72 32 85 50 85C68 85 66 72 66 72V51C80 45 85 32 85 32C85 32 81 15 68 20Z"
+          fill="hsl(var(--primary))"
         />
         <path
-          d="M24 28V36"
-          stroke="hsl(var(--primary))"
-          strokeWidth="3"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+          d="M50 62C58.2843 62 65 55.2843 65 47C65 43 63 38 59.5 35.5C56 33 50 31 50 31C50 31 44 33 40.5 35.5C37 38 35 43 35 47C35 55.2843 41.7157 62 50 62Z"
+          fill="url(#paint1_linear_1)"
         />
+        <defs>
+          <linearGradient
+            id="paint0_linear_1"
+            x1="50"
+            y1="2"
+            x2="50"
+            y2="98"
+            gradientUnits="userSpaceOnUse"
+          >
+            <stop stopColor="#F7B928" />
+            <stop offset="1" stopColor="#FCE4A8" />
+          </linearGradient>
+          <linearGradient
+            id="paint1_linear_1"
+            x1="50"
+            y1="31"
+            x2="50"
+            y2="62"
+            gradientUnits="userSpaceOnUse"
+          >
+            <stop stopColor="#F7B928" />
+            <stop offset="1" stopColor="#FDD87D" />
+          </linearGradient>
+        </defs>
       </svg>
-      <span className="text-xl font-bold text-foreground">Postos Natureza</span>
+
+      <span className="text-xl font-bold text-foreground">
+        <span style={{ color: 'hsl(var(--primary))' }}>Postos </span>
+        <span style={{ color: 'hsl(var(--secondary))' }}>Natureza</span>
+      </span>
     </div>
   );
 }

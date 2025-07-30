@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { Inter } from 'next/font/google';
 
 export const metadata: Metadata = {
-  title: 'FuelTrack Lite',
+  title: 'Postos Natureza',
   description: 'App para registro diário de preços de combustíveis.',
 };
 

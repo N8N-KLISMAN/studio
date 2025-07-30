@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/card';
 import type { Station } from '@/lib/types';
 import { useState, forwardRef, useRef } from 'react';
-import { Camera, Leaf, Loader2, Warehouse, X } from 'lucide-react';
+import { Camera, Fuel, Leaf, Loader2, X } from 'lucide-react';
 import { Separator } from './ui/separator';
 import { Checkbox } from './ui/checkbox';
 import Image from 'next/image';
@@ -69,7 +69,7 @@ const competitorSchema = z.object({
       name: z.string(),
       prices: emptyAllPricesSchema, // Initially optional
       noChange: z.boolean().default(false),
-      photo: photoSchema.optional(), // Kept optional here to handle with superRefine
+      photo: photoSchema, // Always require a photo now
     });
 
 
@@ -105,13 +105,6 @@ const priceFormSchema = z.object({
 
     // Competitors validation
     data.competitors.forEach((competitor, index) => {
-        if(!competitor.photo) {
-             ctx.addIssue({
-                code: z.ZodIssueCode.custom,
-                path: [`competitors`, index, 'photo'], // Point to the object itself
-                message: REQUIRED_FIELD_MESSAGE,
-            });
-        }
         if (!competitor.noChange) {
             const requiredFields = priceSchema.safeParse(competitor.prices.vista);
             if (!requiredFields.success) {
@@ -306,7 +299,7 @@ const onFormError = (errors: any) => {
       icon: 'warning',
       title: 'Atenção!',
       text: 'Existem campos obrigatórios não preenchidos. Por favor, verifique os campos marcados em vermelho.',
-      confirmButtonColor: '#16a34a'
+      confirmButtonColor: 'hsl(var(--primary))'
     });
 };
 
@@ -480,7 +473,7 @@ const onFormError = (errors: any) => {
               <Card key={field.id}>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-gray-600">
-                    <Warehouse className="h-6 w-6" />
+                    <Fuel className="h-6 w-6" />
                     {field.name}
                   </CardTitle>
                 </CardHeader>

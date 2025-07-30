@@ -31,7 +31,7 @@ export default function DashboardPage() {
 
   if (isLoading || !station || !managerId) {
     return (
-       <div className="min-h-screen bg-background font-sans">
+       <div className="min-h-screen bg-background">
         <header className="bg-card shadow-sm border-b border-border">
           <div className="container mx-auto flex h-16 items-center justify-between p-4">
             <Logo />
@@ -52,7 +52,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background font-sans">
+    <div className="min-h-screen bg-background">
       <header className="bg-card shadow-sm border-b border-border">
         <div className="container mx-auto flex h-16 items-center justify-between p-4">
           <Logo />
