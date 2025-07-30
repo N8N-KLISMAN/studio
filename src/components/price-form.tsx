@@ -31,14 +31,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from './ui/alert-dialog';
-import { useState, useEffect, forwardRef, useRef } from 'react';
-import { Camera, CheckCircle2, Leaf, Loader2, MapPin, Warehouse, X, AlertCircle } from 'lucide-react';
+import { useState, forwardRef, useRef } from 'react';
+import { Camera, CheckCircle2, Leaf, Loader2, Warehouse, X } from 'lucide-react';
 import { Separator } from './ui/separator';
 import { Checkbox } from './ui/checkbox';
 import Image from 'next/image';
 import { submitPrices } from '@/ai/flows/submit-prices-flow';
 import { useToast } from '@/hooks/use-toast';
-import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 
 
 const photoSchema = z.object({
@@ -120,7 +119,6 @@ interface PriceFormProps {
 }
 
 const PhotoCapture = ({ field, label, id }: { field: any, label: string, id: string }) => {
-    const { toast } = useToast();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const photoValue = field.value;
 
@@ -247,8 +245,6 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
             stationImage: data.stationImage, 
             competitors: data.competitors,
         };
-
-        console.log('Dados do formulário para envio:', JSON.stringify(submissionData, null, 2));
 
         const result = await submitPrices(submissionData as any);
 
