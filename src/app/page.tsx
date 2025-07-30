@@ -1,98 +1,102 @@
 
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { STATIONS } from '@/lib/data';
 import type { Station } from '@/lib/types';
+import { PriceForm } from '@/components/price-form';
+import { Skeleton } from '@/components/ui/skeleton';
+import { LogOut } from 'lucide-react';
 import { Logo } from '@/components/logo';
 
-export default function LoginPage() {
-  const router = useRouter();
-  const [managerId, setManagerId] = useState('');
-  const [selectedStation, setSelectedStation] = useState<Station | null>(null);
-  const [error, setError] = useState('');
+export default function DashboardPage() {
+  const [station, setStation] = useState<Station | null>(null);
+  const [managerId, setManagerId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!managerId || !selectedStation) {
-      setError('Por favor, preencha todos os campos.');
-      return;
-    }
-    // Save to local storage to simulate a session
-    localStorage.setItem('managerId', managerId);
-    localStorage.setItem('stationId', selectedStation.id);
-    router.push('/dashboard');
+  useEffect(() => {
+    // Since there's no login, we'll use a default manager and the first station
+    const defaultManagerId = 'default-manager';
+    const defaultStation = STATIONS[0];
+
+    if (defaultStation) {
+      setStation(defaultStation);
+      setManagerId(defaultManagerId);
+    } 
+    
+    setIsLoading(false);
+  }, []);
+
+  const handleLogout = () => {
+    // In a real app, this would clear session. Here we can just show a message or do nothing.
+    alert('Logout clicked. In a real app, this would clear the session.');
   };
 
+  if (isLoading) {
+    return (
+      <div className="container mx-auto p-4 md:p-8">
+        <div className="flex justify-between items-center mb-4">
+          <Skeleton className="h-10 w-48" />
+          <Skeleton className="h-10 w-10" />
+        </div>
+        <Skeleton className="h-8 w-1/2 mb-2" />
+        <Skeleton className="h-6 w-3/4 mb-8" />
+        <div className="space-y-4">
+          <Skeleton className="h-40 w-full" />
+          <Skeleton className="h-40 w-full" />
+        </div>
+      </div>
+    );
+  }
+
+  // This check is important to avoid rendering with null data
+  if (!station || !managerId) {
+    return null;
+  }
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-4">
-            <Logo />
-          </div>
-          <CardTitle className="text-2xl">Acesso do Gerente</CardTitle>
-          <CardDescription>
-            Insira suas credenciais para registrar os preços de hoje.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleLogin} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="managerId">Nome ou ID do Gerente</Label>
-              <Input
-                id="managerId"
-                placeholder="Ex. João Silva"
-                value={managerId}
-                onChange={(e) => setManagerId(e.target.value)}
-                required
-              />
+    <div className="min-h-screen bg-background font-sans">
+      <header className="bg-card shadow-sm border-b border-border">
+        <div className="container mx-auto flex h-16 items-center justify-between p-4">
+          <Logo />
+          <div className="flex items-center gap-4">
+            <div className="text-right hidden sm:block">
+              <p className="font-semibold text-foreground">{managerId}</p>
+              <p className="text-sm text-muted-foreground">{station.name}</p>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="station">Posto de Gasolina</Label>
-              <Select
-                onValueChange={(value) => {
-                  const station = STATIONS.find((s) => s.id === value) || null;
-                  setSelectedStation(station);
-                }}
-              >
-                <SelectTrigger id="station">
-                  <SelectValue placeholder="Selecione o seu posto" />
-                </SelectTrigger>
-                <SelectContent>
-                  {STATIONS.map((station) => (
-                    <SelectItem key={station.id} value={station.id}>
-                      {station.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {error && <p className="text-sm text-destructive">{error}</p>}
-            <Button type="submit" className="w-full">
-              Entrar
+            <Button variant="ghost" size="icon" onClick={handleLogout}>
+              <LogOut className="h-5 w-5" />
+              <span className="sr-only">Sair</span>
             </Button>
-          </form>
-        </CardContent>
-      </Card>
+          </div>
+        </div>
+      </header>
+
+      <main className="container mx-auto p-4 md:p-8">
+        <div className="mb-8 text-center md:text-left">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
+            Registro de Preços Diário
+          </h1>
+          <p className="text-lg text-muted-foreground">
+            Selecione o período e preencha as informações abaixo.
+          </p>
+        </div>
+
+        <Tabs defaultValue="manha" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 md:w-[400px]">
+            <TabsTrigger value="manha">Manhã</TabsTrigger>
+            <TabsTrigger value="tarde">Tarde</TabsTrigger>
+          </TabsList>
+          <TabsContent value="manha">
+            <PriceForm station={station} period="Manhã" managerId={managerId} />
+          </TabsContent>
+          <TabsContent value="tarde">
+            <PriceForm station={station} period="Tarde" managerId={managerId} />
+          </TabsContent>
+        </Tabs>
+      </main>
     </div>
   );
 }
