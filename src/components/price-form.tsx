@@ -165,7 +165,7 @@ const PhotoCapture = ({ field, label, id, error }: { field: any, label: string, 
     };
     
     return (
-      <div className="border-2 border-dashed border-muted rounded-lg p-4 text-center">
+      <div className="border-2 border-dashed border-muted-foreground rounded-lg p-4 text-center">
             {photoValue?.dataUri ? (
                  <div className="space-y-2">
                     <div className="relative w-full h-32">
@@ -194,8 +194,8 @@ const PhotoCapture = ({ field, label, id, error }: { field: any, label: string, 
                     />
                     <label htmlFor={id} className="cursor-pointer">
                         <Button type="button" variant="ghost" asChild>
-                           <span className="flex items-center">
-                             <Camera className="h-6 w-6 mr-2" />
+                           <span className="flex items-center text-base">
+                             <Camera className="h-8 w-8 mr-2" />
                              {label}
                            </span>
                         </Button>
