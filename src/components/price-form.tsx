@@ -165,7 +165,7 @@ const PhotoCapture = ({ field, label, id, error }: { field: any, label: string, 
     };
     
     return (
-      <div className="border-2 border-dashed border-muted-foreground rounded-lg p-4 text-center">
+      <div className="border-2 border-dashed border-muted-foreground/60 rounded-lg p-4 text-center">
             {photoValue?.dataUri ? (
                  <div className="space-y-2">
                     <div className="relative w-full h-32">
@@ -450,12 +450,12 @@ const onFormError = (errors: any) => {
               {!stationNoChange && (
                 <div className="space-y-6">
                     <div>
-                        <h3 className="text-lg font-medium mb-4">Preços à Vista</h3>
+                        <h3 className="text-lg font-semibold mb-4">Preços à Vista</h3>
                         {renderPriceFields('stationPrices.vista', stationNoChange)}
                     </div>
                     <Separator />
                     <div>
-                        <h3 className="text-lg font-medium mb-4">Preços a Prazo</h3>
+                        <h3 className="text-lg font-semibold mb-4">Preços a Prazo</h3>
                         {renderPriceFields('stationPrices.prazo', stationNoChange)}
                     </div>
                 </div>
@@ -510,12 +510,12 @@ const onFormError = (errors: any) => {
                   {!competitorNoChange && (
                     <div className="space-y-6">
                         <div>
-                            <h3 className="text-lg font-medium mb-4">Preços à Vista</h3>
+                            <h3 className="text-lg font-semibold mb-4">Preços à Vista</h3>
                             {renderPriceFields(`competitors.${index}.prices.vista`, competitorNoChange)}
                         </div>
                         <Separator />
                         <div>
-                            <h3 className="text-lg font-medium mb-4">Preços a Prazo</h3>
+                            <h3 className="text-lg font-semibold mb-4">Preços a Prazo</h3>
                             {renderPriceFields(`competitors.${index}.prices.prazo`, competitorNoChange)}
                         </div>
                     </div>
