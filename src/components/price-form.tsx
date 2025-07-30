@@ -141,6 +141,15 @@ const PhotoCapture = ({ field, label, id }: { field: any, label: string, id: str
 
     const startCamera = async () => {
         try {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                setHasCameraPermission(false);
+                toast({
+                    variant: 'destructive',
+                    title: 'Câmera não suportada',
+                    description: 'Seu navegador não suporta o acesso à câmera.',
+                });
+                return;
+            }
             const mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
             setHasCameraPermission(true);
             setStream(mediaStream);
@@ -580,4 +589,3 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
     </>
   );
 }
-
