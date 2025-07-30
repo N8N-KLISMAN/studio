@@ -149,7 +149,7 @@ const PhotoCapture = ({ field, label, id }: { field: any, label: string, id: str
                         description: "Não foi possível obter sua localização. A foto será salva sem essa informação."
                     });
                     field.onChange({ dataUri }); 
-                });
+                }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 10000 });
             } else {
                  toast({
                     variant: "destructive",
