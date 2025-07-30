@@ -38,12 +38,12 @@ export default function DashboardPage() {
           </div>
         </header>
         <main className="container mx-auto p-4 md:p-8">
-            <div className="mb-8 text-center md:text-left">
-              <Skeleton className="h-9 w-1/2 mb-4" />
-              <Skeleton className="h-6 w-3/4" />
+            <div className="mb-8 text-center">
+              <Skeleton className="h-9 w-1/2 mb-4 mx-auto" />
+              <Skeleton className="h-6 w-3/4 mx-auto" />
             </div>
             <div className="space-y-4">
-              <Skeleton className="h-10 w-full md:w-[400px]" />
+              <Skeleton className="h-10 w-full md:w-[400px] mx-auto" />
               <Skeleton className="h-96 w-full" />
             </div>
         </main>
@@ -60,7 +60,7 @@ export default function DashboardPage() {
       </header>
 
       <main className="container mx-auto p-4 md:p-8">
-        <div className="mb-8 text-center md:text-left">
+        <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold tracking-tight text-foreground">
             Registro de Preços Diário
           </h1>
@@ -70,7 +70,7 @@ export default function DashboardPage() {
         </div>
 
         <Tabs defaultValue="manha" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 md:w-[400px]">
+          <TabsList className="grid w-full grid-cols-2 md:w-[400px] mx-auto">
             <TabsTrigger value="manha">Manhã</TabsTrigger>
             <TabsTrigger value="tarde">Tarde</TabsTrigger>
           </TabsList>

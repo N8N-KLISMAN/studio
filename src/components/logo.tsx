@@ -47,8 +47,8 @@ export function Logo() {
       </svg>
 
       <span className="text-xl font-bold text-foreground">
-        <span style={{ color: 'hsl(var(--primary))' }}>Postos </span>
-        <span style={{ color: 'hsl(var(--secondary))' }}>Natureza</span>
+        <span style={{ color: 'hsl(var(--secondary))' }}>Postos </span>
+        <span style={{ color: 'hsl(var(--primary))' }}>Natureza</span>
       </span>
     </div>
   );
