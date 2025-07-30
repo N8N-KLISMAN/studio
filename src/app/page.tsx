@@ -29,25 +29,26 @@ export default function DashboardPage() {
     setIsLoading(false);
   }, []);
 
-  if (isLoading) {
+  if (isLoading || !station || !managerId) {
     return (
-      <div className="container mx-auto p-4 md:p-8">
-        <div className="flex justify-between items-center mb-4">
-          <Skeleton className="h-10 w-48" />
-        </div>
-        <Skeleton className="h-8 w-1/2 mb-2" />
-        <Skeleton className="h-6 w-3/4 mb-8" />
-        <div className="space-y-4">
-          <Skeleton className="h-40 w-full" />
-          <Skeleton className="h-40 w-full" />
-        </div>
+       <div className="min-h-screen bg-background font-sans">
+        <header className="bg-card shadow-sm border-b border-border">
+          <div className="container mx-auto flex h-16 items-center justify-between p-4">
+            <Logo />
+          </div>
+        </header>
+        <main className="container mx-auto p-4 md:p-8">
+            <div className="mb-8 text-center md:text-left">
+              <Skeleton className="h-9 w-1/2 mb-4" />
+              <Skeleton className="h-6 w-3/4" />
+            </div>
+            <div className="space-y-4">
+              <Skeleton className="h-10 w-full md:w-[400px]" />
+              <Skeleton className="h-96 w-full" />
+            </div>
+        </main>
       </div>
     );
-  }
-
-  // This check is important to avoid rendering with null data
-  if (!station || !managerId) {
-    return null;
   }
 
   return (
