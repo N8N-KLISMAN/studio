@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/card';
 import type { Station } from '@/lib/types';
 import { useState, forwardRef, useRef } from 'react';
-import { Camera, CheckCircle2, Leaf, Loader2, Warehouse, X } from 'lucide-react';
+import { Camera, Leaf, Loader2, Warehouse, X } from 'lucide-react';
 import { Separator } from './ui/separator';
 import { Checkbox } from './ui/checkbox';
 import Image from 'next/image';
@@ -33,35 +33,107 @@ import Swal from 'sweetalert2';
 
 
 const photoSchema = z.object({
-    dataUri: z.string(),
+    dataUri: z.string().min(1, "A foto é obrigatória."),
 });
 
+const priceValueSchema = z.string().refine(val => val.trim().length > 0, { message: 'Preço obrigatório' });
+
 const priceSchema = z.object({
+    etanol: priceValueSchema,
+    gasolinaComum: priceValueSchema,
+    gasolinaAditivada: priceValueSchema,
+    dieselS10: priceValueSchema,
+});
+
+const emptyPriceSchema = z.object({
     etanol: z.string().optional(),
     gasolinaComum: z.string().optional(),
     gasolinaAditivada: z.string().optional(),
     dieselS10: z.string().optional(),
-});
+})
 
 const allPricesSchema = z.object({
   vista: priceSchema,
   prazo: priceSchema,
 });
 
+const emptyAllPricesSchema = z.object({
+  vista: emptyPriceSchema,
+  prazo: emptyPriceSchema,
+});
 
-const priceFormSchema = z.object({
-  stationPrices: allPricesSchema,
-  stationNoChange: z.boolean().default(false),
-  stationPhoto: photoSchema.optional(),
-  competitors: z.array(
-    z.object({
+
+const competitorSchema = z.object({
       id: z.string(),
       name: z.string(),
-      prices: allPricesSchema,
+      prices: emptyAllPricesSchema, // Initially optional
       noChange: z.boolean().default(false),
       photo: photoSchema.optional(),
-    })
-  ),
+    });
+
+
+const priceFormSchema = z.object({
+  stationPrices: emptyAllPricesSchema, // Initially optional
+  stationNoChange: z.boolean().default(false),
+  stationPhoto: photoSchema,
+  competitors: z.array(competitorSchema),
+}).superRefine((data, ctx) => {
+    // Station validation
+    if (!data.stationNoChange) {
+        const requiredFields = priceSchema.safeParse(data.stationPrices.vista);
+        if (!requiredFields.success) {
+            requiredFields.error.errors.forEach(err => {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    path: ['stationPrices', 'vista', ...err.path],
+                    message: err.message,
+                })
+            })
+        }
+         const requiredFieldsPrazo = priceSchema.safeParse(data.stationPrices.prazo);
+        if (!requiredFieldsPrazo.success) {
+            requiredFieldsPrazo.error.errors.forEach(err => {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    path: ['stationPrices', 'prazo', ...err.path],
+                    message: err.message,
+                })
+            })
+        }
+    }
+
+    // Competitors validation
+    data.competitors.forEach((competitor, index) => {
+        if(!competitor.photo) {
+             ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: [`competitors`, index, 'photo', 'dataUri'],
+                message: "A foto do concorrente é obrigatória.",
+            });
+        }
+        if (!competitor.noChange) {
+            const requiredFields = priceSchema.safeParse(competitor.prices.vista);
+            if (!requiredFields.success) {
+                 requiredFields.error.errors.forEach(err => {
+                    ctx.addIssue({
+                        code: z.ZodIssueCode.custom,
+                        path: [`competitors`, index, 'prices', 'vista', ...err.path],
+                        message: err.message,
+                    })
+                })
+            }
+             const requiredFieldsPrazo = priceSchema.safeParse(competitor.prices.prazo);
+            if (!requiredFieldsPrazo.success) {
+                 requiredFieldsPrazo.error.errors.forEach(err => {
+                    ctx.addIssue({
+                        code: z.ZodIssueCode.custom,
+                        path: [`competitors`, index, 'prices', 'prazo', ...err.path],
+                        message: err.message,
+                    })
+                })
+            }
+        }
+    });
 });
 
 
@@ -73,7 +145,7 @@ interface PriceFormProps {
   managerId: string;
 }
 
-const PhotoCapture = ({ field, label, id }: { field: any, label: string, id: string }) => {
+const PhotoCapture = ({ field, label, id, error }: { field: any, label: string, id: string, error?: string }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const photoValue = field.value;
 
@@ -136,6 +208,7 @@ const PhotoCapture = ({ field, label, id }: { field: any, label: string, id: str
                     </label>
                 </>
             )}
+             {error && <p className="text-sm font-medium text-destructive mt-2">{error}</p>}
         </div>
     );
 };
@@ -143,21 +216,16 @@ const PhotoCapture = ({ field, label, id }: { field: any, label: string, id: str
 
 const PriceInput = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>((props, ref) => {
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        let value = e.target.value.replace(/\D/g, ''); // Remove non-digits
+        let value = e.target.value.replace(/\D/g, ''); 
         
         if (value.length > 3) {
             value = value.substring(0, 3);
         }
 
-        if (value.length > 0) {
-            if (value.length === 1) {
-                // Now just wait for more digits
-            } else if (value.length === 2) {
-                 value = `${value[0]},${value[1]}`;
-            } else if (value.length === 3) {
-                 value = `${value[0]},${value.substring(1)}`;
-            }
+        if (value.length > 1) {
+             value = `${value[0]},${value.substring(1)}`;
         }
+
 
         if (props.onChange) {
             const newEvent = { ...e, target: { ...e.target, value } };
@@ -165,19 +233,7 @@ const PriceInput = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLIn
         }
     };
 
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        const input = e.target as HTMLInputElement;
-        // When user types first digit, add a comma after it.
-        if (input.value.length === 1 && e.key !== 'Backspace' && !input.value.includes(',')) {
-             const newValue = `${input.value},`;
-             if (props.onChange) {
-                const newEvent = { ...e, target: { ...e.target, value: newValue } } as any;
-                props.onChange(newEvent);
-            }
-        }
-    }
-
-    return <Input type="text" inputMode="decimal" placeholder="0,00" {...props} ref={ref} onKeyDown={handleKeyDown} onChange={handleInputChange} />;
+    return <Input type="text" inputMode="decimal" placeholder="0,00" {...props} ref={ref} onChange={handleInputChange} />;
 });
 PriceInput.displayName = 'PriceInput';
 
@@ -197,6 +253,7 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
         noChange: false,
       })),
     },
+     mode: 'onBlur'
   });
 
   const { fields } = useFieldArray({
@@ -219,7 +276,7 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
     paymentMethods.forEach(method => {
         priceTypes.forEach(type => {
             const key = `(${station.name}) ${paymentLabels[method as keyof typeof paymentLabels]}/ ${type}`;
-            const value = data.stationPrices?.[method as keyof typeof data.stationPrices]?.[type as keyof typeof priceSchema.shape];
+            const value = data.stationPrices?.[method as keyof typeof data.stationPrices]?.[type as keyof typeof emptyPriceSchema.shape];
             payload[key] = value ? value.replace(',', '.') : '';
         });
     });
@@ -231,7 +288,7 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
         paymentMethods.forEach(method => {
             priceTypes.forEach(type => {
                 const key = `(${competitor.name}) ${paymentLabels[method as keyof typeof paymentLabels]}/ ${type}`;
-                const value = competitor.prices?.[method as keyof typeof competitor.prices]?.[type as keyof typeof priceSchema.shape];
+                const value = competitor.prices?.[method as keyof typeof competitor.prices]?.[type as keyof typeof emptyPriceSchema.shape];
                 payload[key] = value ? value.replace(',', '.') : '';
             });
         });
@@ -359,8 +416,13 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
                 <FormField
                     control={form.control}
                     name="stationPhoto"
-                    render={({ field }) => (
-                        <PhotoCapture field={field} label="Tirar foto da placa do posto" id="stationPhoto" />
+                    render={({ field, fieldState }) => (
+                        <PhotoCapture 
+                            field={field} 
+                            label="Tirar foto da placa do posto" 
+                            id="stationPhoto"
+                            error={fieldState.error?.message}
+                         />
                     )}
                 />
               <FormField
@@ -414,8 +476,13 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
                     <FormField
                         control={form.control}
                         name={`competitors.${index}.photo`}
-                        render={({ field: formField }) => (
-                           <PhotoCapture field={formField} label={`Tirar foto da placa do ${field.name}`} id={`competitors.${index}.photo`} />
+                        render={({ field: formField, fieldState }) => (
+                           <PhotoCapture 
+                                field={formField} 
+                                label={`Tirar foto da placa do ${field.name}`} 
+                                id={`competitors.${index}.photo`}
+                                error={fieldState.error?.message}
+                            />
                         )}
                     />
                   <FormField
@@ -453,22 +520,13 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
             )})}
           </div>
 
-          <Button type="submit" className="w-full text-lg" disabled={form.formState.isSubmitting}>
-            {form.formState.isSubmitting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Enviando...
-              </>
-            ) : (
-              `Enviar Dados (${period})`
-            )}
+          <Button type="submit" className="w-full text-lg">
+            {`Enviar Dados (${period})`}
           </Button>
         </form>
       </Form>
     </>
   );
 }
-
-    
 
     
