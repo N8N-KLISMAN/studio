@@ -19,41 +19,26 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // This code now runs only on the client, after the initial render.
-    const storedStationId = localStorage.getItem('stationId');
-    const storedManagerId = localStorage.getItem('managerId');
+    // Default to the first station and a default manager
+    const defaultStation = STATIONS[0];
+    const defaultManagerId = 'Default Manager';
 
-    if (!storedStationId || !storedManagerId) {
-      router.replace('/login');
-      return; // Stop execution if not logged in
-    }
-
-    const foundStation = STATIONS.find((s) => s.id === storedStationId);
-    if (foundStation) {
-      setStation(foundStation);
-      setManagerId(storedManagerId);
+    if (defaultStation) {
+      setStation(defaultStation);
+      setManagerId(defaultManagerId);
     } else {
-      // Clear invalid data and redirect
-      localStorage.removeItem('stationId');
-      localStorage.removeItem('managerId');
-      router.replace('/login');
+        // Handle case where STATIONS is empty
+        // Maybe redirect to an error page or show a message
     }
     
     setIsLoading(false);
-  }, [router]);
-
-  const handleLogout = () => {
-    localStorage.removeItem('stationId');
-    localStorage.removeItem('managerId');
-    router.replace('/login');
-  };
+  }, []);
 
   if (isLoading) {
     return (
       <div className="container mx-auto p-4 md:p-8">
         <div className="flex justify-between items-center mb-4">
           <Skeleton className="h-10 w-48" />
-          <Skeleton className="h-10 w-10" />
         </div>
         <Skeleton className="h-8 w-1/2 mb-2" />
         <Skeleton className="h-6 w-3/4 mb-8" />
@@ -81,9 +66,6 @@ export default function DashboardPage() {
               <p className="font-semibold text-foreground">{managerId}</p>
               <p className="text-sm text-muted-foreground">{station.name}</p>
             </div>
-            <Button variant="ghost" size="icon" onClick={handleLogout} aria-label="Sair" className="text-muted-foreground hover:text-primary">
-              <LogOut className="h-5 w-5" />
-            </Button>
           </div>
         </div>
       </header>
