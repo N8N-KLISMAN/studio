@@ -31,13 +31,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from './ui/alert-dialog';
-import { useState, useEffect, forwardRef } from 'react';
-import { Camera, CheckCircle2, Leaf, Loader2, Warehouse, X } from 'lucide-react';
+import { useState, useEffect, forwardRef, useRef } from 'react';
+import { Camera, CheckCircle2, Leaf, Loader2, MapPin, Warehouse, X, AlertCircle } from 'lucide-react';
 import { Separator } from './ui/separator';
 import { Checkbox } from './ui/checkbox';
 import Image from 'next/image';
 import { submitPrices } from '@/ai/flows/submit-prices-flow';
 import { useToast } from '@/hooks/use-toast';
+import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+
 
 const MAX_FILE_SIZE = 5000000;
 const ACCEPTED_IMAGE_TYPES = [
@@ -46,6 +48,12 @@ const ACCEPTED_IMAGE_TYPES = [
   'image/png',
   'image/webp',
 ];
+
+const photoSchema = z.object({
+    dataUri: z.string(),
+    latitude: z.number().optional(),
+    longitude: z.number().optional(),
+});
 
 const priceSchema = z.object({
     etanol: z.string().optional(),
@@ -63,38 +71,14 @@ const allPricesSchema = z.object({
 const priceFormSchema = z.object({
   stationPrices: allPricesSchema,
   stationNoChange: z.boolean().default(false),
-  stationImage: z
-    .any()
-    .refine((files) => files?.length <= 1, 'Apenas uma imagem é permitida.')
-    .refine(
-      (files) => (files?.[0] ? files?.[0]?.size <= MAX_FILE_SIZE : true),
-      `O tamanho máximo da imagem é 5MB.`
-    )
-    .refine(
-      (files) =>
-        files?.[0] ? ACCEPTED_IMAGE_TYPES.includes(files?.[0]?.type) : true,
-      'Apenas .jpg, .jpeg, .png and .webp são permitidos.'
-    )
-    .optional(),
+  stationPhoto: photoSchema.optional(),
   competitors: z.array(
     z.object({
       id: z.string(),
       name: z.string(),
       prices: allPricesSchema,
       noChange: z.boolean().default(false),
-      image: z
-        .any()
-        .refine((files) => files?.length <= 1, 'Apenas uma imagem é permitida.')
-        .refine(
-          (files) => (files?.[0] ? files?.[0]?.size <= MAX_FILE_SIZE : true),
-          `O tamanho máximo da imagem é 5MB.`
-        )
-        .refine(
-          (files) =>
-            files?.[0] ? ACCEPTED_IMAGE_TYPES.includes(files?.[0]?.type) : true,
-          'Apenas .jpg, .jpeg, .png and .webp são permitidos.'
-        )
-        .optional(),
+      photo: photoSchema.optional(),
     })
   ),
 }).transform((data) => {
@@ -119,15 +103,23 @@ const priceFormSchema = z.object({
         }
     }
 
+    // This renaming is important for the backend flow
+    const competitorsWithImage = data.competitors.map(c => ({
+        ...c,
+        image: c.photo?.dataUri, // Rename photo.dataUri to image
+    }));
+
     return {
         ...data,
+        stationImage: data.stationPhoto?.dataUri, // Rename stationPhoto.dataUri to stationImage
         stationPrices: processAllPrices(data.stationPrices),
-        competitors: data.competitors.map(c => ({
+        competitors: competitorsWithImage.map(c => ({
             ...c,
             prices: processAllPrices(c.prices),
         })),
     };
 });
+
 
 type PriceFormValues = z.infer<typeof priceFormSchema>;
 
@@ -137,89 +129,178 @@ interface PriceFormProps {
   managerId: string;
 }
 
-const fileToDataUri = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-};
+const PhotoCapture = ({ field, label, id }: { field: any, label: string, id: string }) => {
+    const { toast } = useToast();
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const [isCapturing, setIsCapturing] = useState(false);
+    const [stream, setStream] = useState<MediaStream | null>(null);
+    const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
 
-const ImageUpload = ({ field, label, id }: { field: any, label: string, id: string }) => {
-    const [preview, setPreview] = useState<string | null>(null);
-    const file = field.value?.[0];
+    const photoValue = field.value;
 
-    useEffect(() => {
-        if (file) {
-            const url = URL.createObjectURL(file);
-            setPreview(url);
-            return () => URL.revokeObjectURL(url);
+    const startCamera = async () => {
+        try {
+            const mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+            setHasCameraPermission(true);
+            setStream(mediaStream);
+            if (videoRef.current) {
+                videoRef.current.srcObject = mediaStream;
+            }
+            setIsCapturing(true);
+        } catch (error) {
+            console.error('Error accessing camera:', error);
+            setHasCameraPermission(false);
+            toast({
+                variant: 'destructive',
+                title: 'Acesso à câmera negado',
+                description: 'Por favor, habilite a permissão da câmera nas configurações do seu navegador.',
+            });
+            setIsCapturing(false);
         }
-        setPreview(null);
-    }, [file]);
+    };
 
+    const stopCamera = () => {
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+            setStream(null);
+        }
+        setIsCapturing(false);
+    };
+
+    const takePhoto = () => {
+        if (!videoRef.current || !canvasRef.current) return;
+
+        const video = videoRef.current;
+        const canvas = canvasRef.current;
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const context = canvas.getContext('2d');
+        if (context) {
+            context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+            const dataUri = canvas.toDataURL('image/jpeg');
+
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition((position) => {
+                    field.onChange({
+                        dataUri,
+                        latitude: position.coords.latitude,
+                        longitude: position.coords.longitude,
+                    });
+                    stopCamera();
+                }, (error) => {
+                    console.error("Error getting geolocation:", error);
+                    toast({
+                        variant: "destructive",
+                        title: "Erro de Geolocalização",
+                        description: "Não foi possível obter sua localização. A foto será salva sem essa informação."
+                    });
+                    field.onChange({ dataUri }); // Save without location
+                    stopCamera();
+                });
+            } else {
+                 toast({
+                    variant: "destructive",
+                    title: "Geolocalização não suportada",
+                    description: "Seu navegador não suporta geolocalização. A foto será salva sem essa informação."
+                });
+                field.onChange({ dataUri }); // Save without location
+                stopCamera();
+            }
+        }
+    };
+    
     const handleRemoveImage = (e: React.MouseEvent<HTMLButtonElement>) => {
         e.preventDefault();
         e.stopPropagation();
-        const dt = new DataTransfer();
-        field.onChange(dt.files);
+        field.onChange(undefined);
     };
+
+    useEffect(() => {
+        // Cleanup on unmount
+        return () => {
+            stopCamera();
+        };
+    }, []);
+
+    if (isCapturing) {
+        return (
+            <div className="space-y-4">
+                <video ref={videoRef} className="w-full aspect-video rounded-md bg-muted" autoPlay muted playsInline />
+                <div className="flex gap-2">
+                    <Button onClick={takePhoto} className="w-full">
+                        <Camera className="mr-2 h-4 w-4" />
+                        Capturar Foto
+                    </Button>
+                    <Button variant="outline" onClick={stopCamera}>Cancelar</Button>
+                </div>
+            </div>
+        )
+    }
 
     return (
         <div className="border-2 border-dashed border-muted rounded-lg p-4 text-center">
-            {preview ? (
-                <div className="relative w-full h-32">
-                    <Image src={preview} alt="Pré-visualização" layout="fill" objectFit="contain" className="rounded-md" />
-                    <Button
-                        type="button"
-                        variant="destructive"
-                        size="icon"
-                        className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
-                        onClick={handleRemoveImage}
-                    >
-                        <X className="h-4 w-4" />
-                    </Button>
+            {photoValue?.dataUri ? (
+                <div className="space-y-2">
+                    <div className="relative w-full h-32">
+                        <Image src={photoValue.dataUri} alt="Pré-visualização" layout="fill" objectFit="contain" className="rounded-md" />
+                        <Button
+                            type="button"
+                            variant="destructive"
+                            size="icon"
+                            className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
+                            onClick={handleRemoveImage}
+                        >
+                            <X className="h-4 w-4" />
+                        </Button>
+                    </div>
+                    {photoValue.latitude && photoValue.longitude && (
+                        <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                            <MapPin className="h-3 w-3" />
+                            <span>{photoValue.latitude.toFixed(5)}, {photoValue.longitude.toFixed(5)}</span>
+                        </div>
+                    )}
                 </div>
             ) : (
                 <div className="flex flex-col items-center justify-center text-muted-foreground">
-                    <Camera className="h-6 w-6 mb-2" />
-                    <FormLabel htmlFor={id} className="cursor-pointer">
+                    <Button type="button" variant="ghost" onClick={startCamera}>
+                        <Camera className="h-6 w-6 mr-2" />
                         {label}
-                    </FormLabel>
-                    <FormControl>
-                        <Input
-                            id={id}
-                            type="file"
-                            className="sr-only"
-                            onChange={(e) => field.onChange(e.target.files)}
-                            accept={ACCEPTED_IMAGE_TYPES.join(',')}
-                        />
-                    </FormControl>
-                    <FormMessage />
+                    </Button>
+                     {hasCameraPermission === false && (
+                         <Alert variant="destructive" className="mt-4 text-left">
+                            <AlertCircle className="h-4 w-4" />
+                             <AlertTitle>Câmera Bloqueada</AlertTitle>
+                             <AlertDescription>
+                                 Para tirar fotos, você precisa permitir o acesso à câmera nas configurações do seu navegador.
+                             </AlertDescription>
+                         </Alert>
+                     )}
                 </div>
             )}
+            <canvas ref={canvasRef} className="hidden" />
         </div>
     );
 };
 
+
 const PriceInput = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>((props, ref) => {
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        let value = e.target.value.replace(/\D/g, '');
+        let value = e.target.value.replace(/\D/g, ''); // Remove all non-digits
         if (value.length > 3) {
             value = value.substring(0, 3);
         }
-        if (value.length > 0) {
-            value = value.replace(/(\d)(\d{0,2})/, '$1,$2');
+        if (value.length > 1) {
+            value = value.replace(/^(\d)(\d{2})$/, '$1,$2');
         }
 
         if (props.onChange) {
-            e.target.value = value;
-            props.onChange(e);
+            const newEvent = { ...e, target: { ...e.target, value } };
+            props.onChange(newEvent as React.ChangeEvent<HTMLInputElement>);
         }
     };
 
-    return <Input type="text" placeholder="0,00" {...props} ref={ref} onChange={handleInputChange} />;
+    return <Input type="text" inputMode="decimal" placeholder="0,00" {...props} ref={ref} onChange={handleInputChange} />;
 });
 PriceInput.displayName = 'PriceInput';
 
@@ -252,15 +333,6 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
   async function onSubmit(data: any) {
     setIsSubmitting(true);
     try {
-        const stationImageUri = data.stationImage?.[0] ? await fileToDataUri(data.stationImage[0]) : undefined;
-        
-        const competitorsWithImages = await Promise.all(
-            data.competitors.map(async (c: any) => {
-                const imageUri = c.image?.[0] ? await fileToDataUri(c.image[0]) : undefined;
-                return { ...c, image: imageUri };
-            })
-        );
-
         const submissionData = {
             managerId,
             stationId: station.id,
@@ -268,11 +340,12 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
             submittedAt: new Date().toISOString(),
             stationPrices: data.stationPrices,
             stationNoChange: data.stationNoChange,
-            stationImage: stationImageUri,
-            competitors: competitorsWithImages,
+            stationImage: data.stationImage, // This is now an object with dataUri
+            competitors: data.competitors, // This now contains photo object
         };
 
         console.log('Dados do formulário para envio:', submissionData);
+        // The transform function handles renaming, so we cast to any
         const result = await submitPrices(submissionData as any);
 
         if (result.success) {
@@ -280,18 +353,14 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
             form.reset({
                 stationPrices: { vista: {}, prazo: {} },
                 stationNoChange: false,
-                stationImage: undefined,
+                stationPhoto: undefined,
                 competitors: station.competitors.map((c) => ({
                     ...c,
                     prices: { vista: {}, prazo: {} },
                     noChange: false,
-                    image: undefined
+                    photo: undefined
                 })),
             });
-            // Clear file inputs manually if reset doesn't work as expected
-            const fileInputs = document.querySelectorAll('input[type="file"]');
-            fileInputs.forEach(input => (input as HTMLInputElement).value = '');
-
         } else {
             toast({
                 variant: 'destructive',
@@ -382,9 +451,9 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
             <CardContent className="space-y-6">
                 <FormField
                     control={form.control}
-                    name="stationImage"
+                    name="stationPhoto"
                     render={({ field }) => (
-                        <ImageUpload field={field} label="Anexar foto da placa do posto atual" id="stationImage" />
+                        <PhotoCapture field={field} label="Tirar foto da placa do posto" id="stationPhoto" />
                     )}
                 />
               <FormField
@@ -437,9 +506,9 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
                 <CardContent className="space-y-6">
                     <FormField
                         control={form.control}
-                        name={`competitors.${index}.image`}
+                        name={`competitors.${index}.photo`}
                         render={({ field: formField }) => (
-                           <ImageUpload field={formField} label={`Anexar foto da placa do ${field.name}`} id={`competitors.${index}.image`} />
+                           <PhotoCapture field={formField} label={`Tirar foto da placa do ${field.name}`} id={`competitors.${index}.photo`} />
                         )}
                     />
                   <FormField
@@ -511,3 +580,4 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
     </>
   );
 }
+

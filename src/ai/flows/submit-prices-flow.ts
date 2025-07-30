@@ -34,6 +34,8 @@ const CompetitorSchema = z.object({
     .describe(
       "A photo of the competitor's price board, as a data URI."
     ).optional(),
+  latitude: z.number().optional(),
+  longitude: z.number().optional(),
 });
 
 const SubmitPricesInputSchema = z.object({
@@ -48,6 +50,8 @@ const SubmitPricesInputSchema = z.object({
     .describe(
         "A photo of the station's price board, as a data URI."
     ).optional(),
+  stationLatitude: z.number().optional(),
+  stationLongitude: z.number().optional(),
   competitors: z.array(CompetitorSchema),
 });
 
@@ -73,7 +77,34 @@ const submitPricesFlow = ai.defineFlow(
     outputSchema: SubmitPricesOutputSchema,
   },
   async (input) => {
-    console.log('Received price submission:', JSON.stringify(input, null, 2));
+    // Extract geolocation from the photo objects and place it at the top level
+    const stationImage = input.stationImage as any;
+    const stationLatitude = stationImage?.latitude;
+    const stationLongitude = stationImage?.longitude;
+
+    const competitors = input.competitors.map(c => {
+        const photo = (c as any).photo;
+        return {
+            id: c.id,
+            name: c.name,
+            prices: c.prices,
+            noChange: c.noChange,
+            image: photo?.dataUri,
+            latitude: photo?.latitude,
+            longitude: photo?.longitude,
+        }
+    });
+
+    const processedInput = {
+        ...input,
+        stationImage: stationImage?.dataUri,
+        stationLatitude,
+        stationLongitude,
+        competitors,
+    };
+    
+    console.log('Received price submission:', JSON.stringify(processedInput, null, 2));
+
 
     // Here you would typically save the data to a database like Firestore.
     // For now, we'll just simulate a successful submission.
