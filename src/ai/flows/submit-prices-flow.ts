@@ -18,10 +18,16 @@ const PriceSchema = z.object({
   dieselS10: z.coerce.number().optional(),
 });
 
+const AllPricesSchema = z.object({
+    vista: PriceSchema,
+    prazo: PriceSchema,
+});
+
+
 const CompetitorSchema = z.object({
   id: z.string(),
   name: z.string(),
-  prices: PriceSchema,
+  prices: AllPricesSchema,
   noChange: z.boolean().default(false),
   image: z
     .string()
@@ -35,7 +41,7 @@ const SubmitPricesInputSchema = z.object({
   stationId: z.string(),
   period: z.string(),
   submittedAt: z.string(),
-  stationPrices: PriceSchema,
+  stationPrices: AllPricesSchema,
   stationNoChange: z.boolean().default(false),
   stationImage: z
     .string()

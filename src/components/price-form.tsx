@@ -54,8 +54,14 @@ const priceSchema = z.object({
     dieselS10: z.string().optional(),
 });
 
+const allPricesSchema = z.object({
+  vista: priceSchema,
+  prazo: priceSchema,
+});
+
+
 const priceFormSchema = z.object({
-  stationPrices: priceSchema,
+  stationPrices: allPricesSchema,
   stationNoChange: z.boolean().default(false),
   stationImage: z
     .any()
@@ -74,7 +80,7 @@ const priceFormSchema = z.object({
     z.object({
       id: z.string(),
       name: z.string(),
-      prices: priceSchema,
+      prices: allPricesSchema,
       noChange: z.boolean().default(false),
       image: z
         .any()
@@ -106,12 +112,19 @@ const priceFormSchema = z.object({
         return newPrices;
     };
 
+    const processAllPrices = (allPrices: { vista?: any, prazo?: any}) => {
+        return {
+            vista: processPrices(allPrices.vista),
+            prazo: processPrices(allPrices.prazo),
+        }
+    }
+
     return {
         ...data,
-        stationPrices: processPrices(data.stationPrices),
+        stationPrices: processAllPrices(data.stationPrices),
         competitors: data.competitors.map(c => ({
             ...c,
-            prices: processPrices(c.prices),
+            prices: processAllPrices(c.prices),
         })),
     };
 });
@@ -219,11 +232,11 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
   const form = useForm<z.infer<typeof priceFormSchema>>({
     resolver: zodResolver(priceFormSchema),
     defaultValues: {
-      stationPrices: {},
+      stationPrices: { vista: {}, prazo: {} },
       stationNoChange: false,
       competitors: station.competitors.map((c) => ({
         ...c,
-        prices: {},
+        prices: { vista: {}, prazo: {} },
         noChange: false,
       })),
     },
@@ -265,12 +278,12 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
         if (result.success) {
             setShowSuccessDialog(true);
             form.reset({
-                stationPrices: {},
+                stationPrices: { vista: {}, prazo: {} },
                 stationNoChange: false,
                 stationImage: undefined,
                 competitors: station.competitors.map((c) => ({
                     ...c,
-                    prices: {},
+                    prices: { vista: {}, prazo: {} },
                     noChange: false,
                     image: undefined
                 })),
@@ -297,6 +310,63 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
         setIsSubmitting(false);
     }
   }
+
+  const renderPriceFields = (fieldPrefix: string, disabled: boolean) => (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <FormField
+        control={form.control}
+        name={`${fieldPrefix}.etanol`}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Etanol (R$)</FormLabel>
+            <FormControl>
+              <PriceInput {...field} disabled={disabled} />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+      <FormField
+        control={form.control}
+        name={`${fieldPrefix}.gasolinaComum`}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Gasolina Comum (R$)</FormLabel>
+            <FormControl>
+              <PriceInput {...field} disabled={disabled} />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+      <FormField
+        control={form.control}
+        name={`${fieldPrefix}.gasolinaAditivada`}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Gasolina Aditivada (R$)</FormLabel>
+            <FormControl>
+              <PriceInput {...field} disabled={disabled} />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+      <FormField
+        control={form.control}
+        name={`${fieldPrefix}.dieselS10`}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Diesel S-10 (R$)</FormLabel>
+            <FormControl>
+              <PriceInput {...field} disabled={disabled} />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+    </div>
+  );
 
   return (
     <>
@@ -335,60 +405,17 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
                 )}
               />
               {!stationNoChange && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="stationPrices.etanol"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Etanol (R$)</FormLabel>
-                      <FormControl>
-                        <PriceInput {...field} disabled={stationNoChange} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="stationPrices.gasolinaComum"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Gasolina Comum (R$)</FormLabel>
-                      <FormControl>
-                        <PriceInput {...field} disabled={stationNoChange} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="stationPrices.gasolinaAditivada"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Gasolina Aditivada (R$)</FormLabel>
-                      <FormControl>
-                        <PriceInput {...field} disabled={stationNoChange} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="stationPrices.dieselS10"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Diesel S-10 (R$)</FormLabel>
-                      <FormControl>
-                        <PriceInput {...field} disabled={stationNoChange} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+                <div className="space-y-6">
+                    <div>
+                        <h3 className="text-lg font-medium mb-4">Preços à Vista</h3>
+                        {renderPriceFields('stationPrices.vista', stationNoChange)}
+                    </div>
+                    <Separator />
+                    <div>
+                        <h3 className="text-lg font-medium mb-4">Preços a Prazo</h3>
+                        {renderPriceFields('stationPrices.prazo', stationNoChange)}
+                    </div>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -433,60 +460,17 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
                     )}
                   />
                   {!competitorNoChange && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name={`competitors.${index}.prices.etanol`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Etanol (R$)</FormLabel>
-                          <FormControl>
-                            <PriceInput {...field} disabled={competitorNoChange} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name={`competitors.${index}.prices.gasolinaComum`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Gasolina Comum (R$)</FormLabel>
-                          <FormControl>
-                            <PriceInput {...field} disabled={competitorNoChange} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name={`competitors.${index}.prices.gasolinaAditivada`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Gasolina Aditivada (R$)</FormLabel>
-                          <FormControl>
-                            <PriceInput {...field} disabled={competitorNoChange} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name={`competitors.${index}.prices.dieselS10`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Diesel S-10 (R$)</FormLabel>
-                          <FormControl>
-                            <PriceInput {...field} disabled={competitorNoChange} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+                    <div className="space-y-6">
+                        <div>
+                            <h3 className="text-lg font-medium mb-4">Preços à Vista</h3>
+                            {renderPriceFields(`competitors.${index}.prices.vista`, competitorNoChange)}
+                        </div>
+                        <Separator />
+                        <div>
+                            <h3 className="text-lg font-medium mb-4">Preços a Prazo</h3>
+                            {renderPriceFields(`competitors.${index}.prices.prazo`, competitorNoChange)}
+                        </div>
+                    </div>
                   )}
                 </CardContent>
               </Card>
