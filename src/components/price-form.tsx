@@ -267,6 +267,8 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
   const formatPayloadForN8n = (data: PriceFormValues) => {
     const payload: { [key: string]: any } = {};
 
+    payload['Período de Coleta'] = period;
+
     payload[`(${station.name}) Foto da minha placa`] = data.stationPhoto?.dataUri || '';
     payload[`(${station.name}) Marcou Opção de Alteração de preço`] = data.stationNoChange;
 
@@ -538,5 +540,7 @@ const onFormError = (errors: any) => {
     </>
   );
 }
+
+    
 
     
