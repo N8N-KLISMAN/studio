@@ -90,7 +90,6 @@ const submitPricesFlow = ai.defineFlow(
     console.log('Received price submission:', JSON.stringify(processedInput, null, 2));
 
 
-    // Here you would typically save the data to a database like Firestore.
     // For now, we'll just simulate a successful submission.
 
     return {
