@@ -266,26 +266,27 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
     payload[`(${station.name}) Marcou Opção de Alteração de preço`] = data.stationNoChange;
 
     const priceTypes = ['etanol', 'gasolinaComum', 'gasolinaAditivada', 'dieselS10'];
-    const paymentMethods = ['vista', 'prazo'];
+    const paymentMethods: Array<keyof typeof data.stationPrices> = ['vista', 'prazo'];
     const paymentLabels = {'vista': 'Preços a vista', 'prazo': 'Preços a Prazo'};
 
     paymentMethods.forEach(method => {
         priceTypes.forEach(type => {
-            const key = `(${station.name}) ${paymentLabels[method as keyof typeof paymentLabels]}/${type}`;
-            const value = data.stationPrices?.[method as keyof typeof data.stationPrices]?.[type as keyof typeof emptyPriceSchema.shape];
-            payload[key] = value ? value.replace(',', '.') : '';
+            const key = `(${station.name}) ${paymentLabels[method]}/${type}`;
+            const stationPriceValue = data.stationPrices?.[method]?.[type as keyof typeof priceSchema.shape];
+            payload[key] = stationPriceValue ? stationPriceValue.replace(',', '.') : '';
         });
     });
 
     data.competitors.forEach((competitor) => {
-        payload[`(${competitor.name}) Foto da placa`] = competitor.photo?.dataUri || '';
-        payload[`(${competitor.name}) Marcou Opção de Alteração de preço`] = competitor.noChange;
+        const competitorName = `(${competitor.name})`;
+        payload[`${competitorName} Foto da placa`] = competitor.photo?.dataUri || '';
+        payload[`${competitorName} Marcou Opção de Alteração de preço`] = competitor.noChange;
         
         paymentMethods.forEach(method => {
             priceTypes.forEach(type => {
-                const key = `(${competitor.name}) ${paymentLabels[method as keyof typeof paymentLabels]}/${type}`;
-                const value = competitor.prices?.[method as keyof typeof competitor.prices]?.[type as keyof typeof emptyPriceSchema.shape];
-                payload[key] = value ? value.replace(',', '.') : '';
+                const key = `${competitorName} ${paymentLabels[method]}/${type}`;
+                const competitorPriceValue = competitor.prices?.[method]?.[type as keyof typeof priceSchema.shape];
+                payload[key] = competitorPriceValue ? competitorPriceValue.replace(',', '.') : '';
             });
         });
     });
@@ -326,6 +327,9 @@ const onFormError = (errors: any) => {
     });
 
     const payload = formatPayloadForN8n(data);
+    
+    console.log("Payload to be sent:", JSON.stringify(payload, null, 2));
+
 
     // Send the data in the background
     fetch(webhookUrl, {
@@ -533,3 +537,5 @@ const onFormError = (errors: any) => {
     </>
   );
 }
+
+    
