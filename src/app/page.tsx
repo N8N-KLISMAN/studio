@@ -29,17 +29,11 @@ export default function DashboardPage() {
     setIsLoading(false);
   }, []);
 
-  const handleLogout = () => {
-    // In a real app, this would clear session. Here we can just show a message or do nothing.
-    alert('Logout clicked. In a real app, this would clear the session.');
-  };
-
   if (isLoading) {
     return (
       <div className="container mx-auto p-4 md:p-8">
         <div className="flex justify-between items-center mb-4">
           <Skeleton className="h-10 w-48" />
-          <Skeleton className="h-10 w-10" />
         </div>
         <Skeleton className="h-8 w-1/2 mb-2" />
         <Skeleton className="h-6 w-3/4 mb-8" />
@@ -61,16 +55,6 @@ export default function DashboardPage() {
       <header className="bg-card shadow-sm border-b border-border">
         <div className="container mx-auto flex h-16 items-center justify-between p-4">
           <Logo />
-          <div className="flex items-center gap-4">
-            <div className="text-right hidden sm:block">
-              <p className="font-semibold text-foreground">{managerId}</p>
-              <p className="text-sm text-muted-foreground">{station.name}</p>
-            </div>
-            <Button variant="ghost" size="icon" onClick={handleLogout}>
-              <LogOut className="h-5 w-5" />
-              <span className="sr-only">Sair</span>
-            </Button>
-          </div>
         </div>
       </header>
 
