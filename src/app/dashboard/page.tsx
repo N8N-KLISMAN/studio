@@ -19,6 +19,7 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // This code now runs only on the client, after the component has mounted.
     const storedManagerId = localStorage.getItem('managerId');
     const storedStationId = localStorage.getItem('stationId');
 
@@ -64,9 +65,8 @@ export default function DashboardPage() {
     );
   }
 
+  // This check is important to avoid rendering with null data during client-side hydration
   if (!station || !managerId) {
-    // This state will be hit briefly during the redirect,
-    // or if the data is invalid. It avoids rendering the full page.
     return null;
   }
 
