@@ -34,7 +34,7 @@ import Swal from 'sweetalert2';
 const REQUIRED_FIELD_MESSAGE = "Preencha Aqui!";
 
 const photoSchema = z.object({
-    dataUri: z.string().min(1, REQUIRED_FIELD_MESSAGE),
+    dataUri: z.string().min(1, { message: REQUIRED_FIELD_MESSAGE }),
 });
 
 const priceValueSchema = z.string().refine(val => val.trim().length > 0, { message: REQUIRED_FIELD_MESSAGE });
@@ -69,7 +69,7 @@ const competitorSchema = z.object({
       name: z.string(),
       prices: emptyAllPricesSchema, // Initially optional
       noChange: z.boolean().default(false),
-      photo: photoSchema.optional(),
+      photo: photoSchema.optional(), // Kept optional here to handle with superRefine
     });
 
 
@@ -108,7 +108,7 @@ const priceFormSchema = z.object({
         if(!competitor.photo) {
              ctx.addIssue({
                 code: z.ZodIssueCode.custom,
-                path: [`competitors`, index, 'photo', 'dataUri'],
+                path: [`competitors`, index, 'photo'], // Point to the object itself
                 message: REQUIRED_FIELD_MESSAGE,
             });
         }
