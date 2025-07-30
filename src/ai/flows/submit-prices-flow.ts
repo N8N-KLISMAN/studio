@@ -23,17 +23,18 @@ const AllPricesSchema = z.object({
     prazo: PriceSchema,
 });
 
+const PhotoSchema = z.object({
+    dataUri: z.string().describe("The photo as a data URI."),
+    latitude: z.number().optional(),
+    longitude: z.number().optional(),
+})
 
 const CompetitorSchema = z.object({
   id: z.string(),
   name: z.string(),
   prices: AllPricesSchema,
   noChange: z.boolean().default(false),
-  image: z
-    .string()
-    .describe(
-      "A photo of the competitor's price board, as a data URI."
-    ).optional(),
+  image: PhotoSchema.optional(),
   latitude: z.number().optional(),
   longitude: z.number().optional(),
 });
@@ -45,11 +46,7 @@ const SubmitPricesInputSchema = z.object({
   submittedAt: z.string(),
   stationPrices: AllPricesSchema,
   stationNoChange: z.boolean().default(false),
-  stationImage: z
-    .string()
-    .describe(
-        "A photo of the station's price board, as a data URI."
-    ).optional(),
+  stationImage: PhotoSchema.optional(),
   stationLatitude: z.number().optional(),
   stationLongitude: z.number().optional(),
   competitors: z.array(CompetitorSchema),
@@ -78,26 +75,25 @@ const submitPricesFlow = ai.defineFlow(
   },
   async (input) => {
     // Extract geolocation from the photo objects and place it at the top level
-    const stationImage = input.stationImage as any;
-    const stationLatitude = stationImage?.latitude;
-    const stationLongitude = stationImage?.longitude;
+    const stationImage = input.stationImage?.dataUri;
+    const stationLatitude = input.stationImage?.latitude;
+    const stationLongitude = input.stationImage?.longitude;
 
     const competitors = input.competitors.map(c => {
-        const photo = (c as any).photo;
         return {
             id: c.id,
             name: c.name,
             prices: c.prices,
             noChange: c.noChange,
-            image: photo?.dataUri,
-            latitude: photo?.latitude,
-            longitude: photo?.longitude,
+            image: c.image?.dataUri,
+            latitude: c.image?.latitude,
+            longitude: c.image?.longitude,
         }
     });
 
     const processedInput = {
         ...input,
-        stationImage: stationImage?.dataUri,
+        stationImage,
         stationLatitude,
         stationLongitude,
         competitors,

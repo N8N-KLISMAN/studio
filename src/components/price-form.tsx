@@ -41,14 +41,6 @@ import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 
 
-const MAX_FILE_SIZE = 5000000;
-const ACCEPTED_IMAGE_TYPES = [
-  'image/jpeg',
-  'image/jpg',
-  'image/png',
-  'image/webp',
-];
-
 const photoSchema = z.object({
     dataUri: z.string(),
     latitude: z.number().optional(),
@@ -106,12 +98,12 @@ const priceFormSchema = z.object({
     // This renaming is important for the backend flow
     const competitorsWithImage = data.competitors.map(c => ({
         ...c,
-        image: c.photo?.dataUri, // Rename photo.dataUri to image
+        image: c.photo, 
     }));
 
     return {
         ...data,
-        stationImage: data.stationPhoto?.dataUri, // Rename stationPhoto.dataUri to stationImage
+        stationImage: data.stationPhoto, 
         stationPrices: processAllPrices(data.stationPrices),
         competitors: competitorsWithImage.map(c => ({
             ...c,
@@ -131,64 +123,17 @@ interface PriceFormProps {
 
 const PhotoCapture = ({ field, label, id }: { field: any, label: string, id: string }) => {
     const { toast } = useToast();
-    const videoRef = useRef<HTMLVideoElement>(null);
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-    const [isCapturing, setIsCapturing] = useState(false);
-    const [stream, setStream] = useState<MediaStream | null>(null);
-    const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
-
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const photoValue = field.value;
 
-    const startCamera = async () => {
-        try {
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                setHasCameraPermission(false);
-                toast({
-                    variant: 'destructive',
-                    title: 'Câmera não suportada',
-                    description: 'Seu navegador não suporta o acesso à câmera.',
-                });
-                return;
-            }
-            const mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-            setHasCameraPermission(true);
-            setStream(mediaStream);
-            if (videoRef.current) {
-                videoRef.current.srcObject = mediaStream;
-            }
-            setIsCapturing(true);
-        } catch (error) {
-            console.error('Error accessing camera:', error);
-            setHasCameraPermission(false);
-            toast({
-                variant: 'destructive',
-                title: 'Acesso à câmera negado',
-                description: 'Por favor, habilite a permissão da câmera nas configurações do seu navegador.',
-            });
-            setIsCapturing(false);
-        }
-    };
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
 
-    const stopCamera = () => {
-        if (stream) {
-            stream.getTracks().forEach(track => track.stop());
-            setStream(null);
-        }
-        setIsCapturing(false);
-    };
-
-    const takePhoto = () => {
-        if (!videoRef.current || !canvasRef.current) return;
-
-        const video = videoRef.current;
-        const canvas = canvasRef.current;
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        const context = canvas.getContext('2d');
-        if (context) {
-            context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
-            const dataUri = canvas.toDataURL('image/jpeg');
-
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const dataUri = e.target?.result as string;
+            
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition((position) => {
                     field.onChange({
@@ -196,7 +141,6 @@ const PhotoCapture = ({ field, label, id }: { field: any, label: string, id: str
                         latitude: position.coords.latitude,
                         longitude: position.coords.longitude,
                     });
-                    stopCamera();
                 }, (error) => {
                     console.error("Error getting geolocation:", error);
                     toast({
@@ -204,8 +148,7 @@ const PhotoCapture = ({ field, label, id }: { field: any, label: string, id: str
                         title: "Erro de Geolocalização",
                         description: "Não foi possível obter sua localização. A foto será salva sem essa informação."
                     });
-                    field.onChange({ dataUri }); // Save without location
-                    stopCamera();
+                    field.onChange({ dataUri }); 
                 });
             } else {
                  toast({
@@ -213,44 +156,25 @@ const PhotoCapture = ({ field, label, id }: { field: any, label: string, id: str
                     title: "Geolocalização não suportada",
                     description: "Seu navegador não suporta geolocalização. A foto será salva sem essa informação."
                 });
-                field.onChange({ dataUri }); // Save without location
-                stopCamera();
+                field.onChange({ dataUri });
             }
-        }
+        };
+        reader.readAsDataURL(file);
     };
-    
+
     const handleRemoveImage = (e: React.MouseEvent<HTMLButtonElement>) => {
         e.preventDefault();
         e.stopPropagation();
         field.onChange(undefined);
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
     };
-
-    useEffect(() => {
-        // Cleanup on unmount
-        return () => {
-            stopCamera();
-        };
-    }, []);
-
-    if (isCapturing) {
-        return (
-            <div className="space-y-4">
-                <video ref={videoRef} className="w-full aspect-video rounded-md bg-muted" autoPlay muted playsInline />
-                <div className="flex gap-2">
-                    <Button onClick={takePhoto} className="w-full">
-                        <Camera className="mr-2 h-4 w-4" />
-                        Capturar Foto
-                    </Button>
-                    <Button variant="outline" onClick={stopCamera}>Cancelar</Button>
-                </div>
-            </div>
-        )
-    }
-
+    
     return (
-        <div className="border-2 border-dashed border-muted rounded-lg p-4 text-center">
+      <div className="border-2 border-dashed border-muted rounded-lg p-4 text-center">
             {photoValue?.dataUri ? (
-                <div className="space-y-2">
+                 <div className="space-y-2">
                     <div className="relative w-full h-32">
                         <Image src={photoValue.dataUri} alt="Pré-visualização" layout="fill" objectFit="contain" className="rounded-md" />
                         <Button
@@ -271,23 +195,26 @@ const PhotoCapture = ({ field, label, id }: { field: any, label: string, id: str
                     )}
                 </div>
             ) : (
-                <div className="flex flex-col items-center justify-center text-muted-foreground">
-                    <Button type="button" variant="ghost" onClick={startCamera}>
-                        <Camera className="h-6 w-6 mr-2" />
-                        {label}
-                    </Button>
-                     {hasCameraPermission === false && (
-                         <Alert variant="destructive" className="mt-4 text-left">
-                            <AlertCircle className="h-4 w-4" />
-                             <AlertTitle>Câmera Bloqueada</AlertTitle>
-                             <AlertDescription>
-                                 Para tirar fotos, você precisa permitir o acesso à câmera nas configurações do seu navegador.
-                             </AlertDescription>
-                         </Alert>
-                     )}
-                </div>
+                <>
+                    <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        ref={fileInputRef}
+                        onChange={handleFileChange}
+                        className="hidden"
+                        id={id}
+                    />
+                    <label htmlFor={id} className="cursor-pointer">
+                        <Button type="button" variant="ghost" asChild>
+                           <span className="flex items-center">
+                             <Camera className="h-6 w-6 mr-2" />
+                             {label}
+                           </span>
+                        </Button>
+                    </label>
+                </>
             )}
-            <canvas ref={canvasRef} className="hidden" />
         </div>
     );
 };
@@ -349,12 +276,12 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
             submittedAt: new Date().toISOString(),
             stationPrices: data.stationPrices,
             stationNoChange: data.stationNoChange,
-            stationImage: data.stationImage, // This is now an object with dataUri
-            competitors: data.competitors, // This now contains photo object
+            stationImage: data.stationImage, 
+            competitors: data.competitors,
         };
 
-        console.log('Dados do formulário para envio:', submissionData);
-        // The transform function handles renaming, so we cast to any
+        console.log('Dados do formulário para envio:', JSON.stringify(submissionData, null, 2));
+
         const result = await submitPrices(submissionData as any);
 
         if (result.success) {
