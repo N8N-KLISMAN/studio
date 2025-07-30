@@ -22,22 +22,14 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import type { Station } from '@/lib/types';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from './ui/alert-dialog';
 import { useState, forwardRef, useRef } from 'react';
 import { Camera, CheckCircle2, Leaf, Loader2, Warehouse, X } from 'lucide-react';
 import { Separator } from './ui/separator';
 import { Checkbox } from './ui/checkbox';
 import Image from 'next/image';
-import { submitPrices } from '@/ai/flows/submit-prices-flow';
 import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
+import Swal from 'sweetalert2';
 
 
 const photoSchema = z.object({
@@ -70,43 +62,6 @@ const priceFormSchema = z.object({
       photo: photoSchema.optional(),
     })
   ),
-}).transform((data) => {
-    const processPrices = (prices: Record<string, string | undefined> | undefined) => {
-        if (!prices) return {};
-        const newPrices: Record<string, number | undefined> = {};
-        for (const key in prices) {
-            const value = prices[key];
-            if (typeof value === 'string' && value.includes(',')) {
-                newPrices[key] = parseFloat(value.replace(',', '.'));
-            } else if(value) {
-                newPrices[key] = parseFloat(value);
-            }
-        }
-        return newPrices;
-    };
-
-    const processAllPrices = (allPrices: { vista?: any, prazo?: any}) => {
-        return {
-            vista: processPrices(allPrices.vista),
-            prazo: processPrices(allPrices.prazo),
-        }
-    }
-
-    // This renaming is important for the backend flow
-    const competitorsWithImage = data.competitors.map(c => ({
-        ...c,
-        image: c.photo, 
-    }));
-
-    return {
-        ...data,
-        stationImage: data.stationPhoto, 
-        stationPrices: processAllPrices(data.stationPrices),
-        competitors: competitorsWithImage.map(c => ({
-            ...c,
-            prices: processAllPrices(c.prices),
-        })),
-    };
 });
 
 
@@ -188,12 +143,22 @@ const PhotoCapture = ({ field, label, id }: { field: any, label: string, id: str
 
 const PriceInput = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>((props, ref) => {
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        let value = e.target.value.replace(/\\D/g, ''); // Remove all non-digits
-        if (value.length > 3) {
-            value = value.substring(0, 3);
+        let value = e.target.value.replace(/[^0-9,]/g, '');
+        
+        // Remove multiple commas
+        const commaCount = (value.match(/,/g) || []).length;
+        if (commaCount > 1) {
+            const firstCommaIndex = value.indexOf(',');
+            value = value.substring(0, firstCommaIndex + 1) + value.substring(firstCommaIndex + 1).replace(/,/g, '');
         }
-        if (value.length > 1) {
-            value = value.replace(/^(\\d)(\\d{2})$/, '$1,$2');
+
+        // Ensure comma has at most 2 decimal places
+        if (value.includes(',')) {
+            const parts = value.split(',');
+            if (parts[1] && parts[1].length > 2) {
+                parts[1] = parts[1].substring(0, 2);
+                value = parts.join(',');
+            }
         }
 
         if (props.onChange) {
@@ -208,8 +173,7 @@ PriceInput.displayName = 'PriceInput';
 
 
 export function PriceForm({ station, period, managerId }: PriceFormProps) {
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const router = useRouter();
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof priceFormSchema>>({
@@ -232,51 +196,93 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
 
   const stationNoChange = form.watch('stationNoChange');
 
-  async function onSubmit(data: any) {
-    setIsSubmitting(true);
-    try {
-        const submissionData = {
-            managerId,
-            stationId: station.id,
-            period,
-            submittedAt: new Date().toISOString(),
-            stationPrices: data.stationPrices,
-            stationNoChange: data.stationNoChange,
-            stationImage: data.stationImage, 
-            competitors: data.competitors,
-        };
+  const formatPayloadForN8n = (data: PriceFormValues) => {
+    const payload: { [key: string]: any } = {};
 
-        const result = await submitPrices(submissionData as any);
+    payload[`(${station.name}) Foto da minha placa`] = data.stationPhoto?.dataUri || '';
+    payload[`(${station.name}) Marcou Opção de Alteração de preço`] = data.stationNoChange;
 
-        if (result.success) {
-            setShowSuccessDialog(true);
-            form.reset({
-                stationPrices: { vista: {}, prazo: {} },
-                stationNoChange: false,
-                stationPhoto: undefined,
-                competitors: station.competitors.map((c) => ({
-                    ...c,
-                    prices: { vista: {}, prazo: {} },
-                    noChange: false,
-                    photo: undefined
-                })),
+    const priceTypes = ['etanol', 'gasolinaComum', 'gasolinaAditivada', 'dieselS10'];
+    const paymentMethods = ['vista', 'prazo'];
+    const paymentLabels = {'vista': 'Preços à Vista', 'prazo': 'Preços a Prazo'};
+
+    paymentMethods.forEach(method => {
+        priceTypes.forEach(type => {
+            const key = `(${station.name}) ${paymentLabels[method as keyof typeof paymentLabels]}/ ${type}`;
+            const value = data.stationPrices?.[method as keyof typeof data.stationPrices]?.[type as keyof typeof priceSchema.shape];
+            payload[key] = value ? value.replace(',', '.') : '';
+        });
+    });
+
+    data.competitors.forEach((competitor, index) => {
+        payload[`(${competitor.name}) Foto da placa`] = competitor.photo?.dataUri || '';
+        payload[`(${competitor.name}) Marcou Opção de Alteração de preço`] = competitor.noChange;
+        
+        paymentMethods.forEach(method => {
+            priceTypes.forEach(type => {
+                const key = `(${competitor.name}) ${paymentLabels[method as keyof typeof paymentLabels]}/ ${type}`;
+                const value = competitor.prices?.[method as keyof typeof competitor.prices]?.[type as keyof typeof priceSchema.shape];
+                payload[key] = value ? value.replace(',', '.') : '';
             });
+        });
+    });
+
+    return payload;
+};
+
+
+  async function onSubmit(data: PriceFormValues) {
+    const webhookUrl = process.env.NEXT_PUBLIC_WEBHOOK_URL;
+    if (!webhookUrl) {
+        console.error("Webhook URL is not defined in .env file.");
+        toast({
+            variant: 'destructive',
+            title: 'Erro de Configuração',
+            description: 'A URL do webhook não está configurada.',
+        });
+        return;
+    }
+
+    Swal.fire({
+      title: 'Enviando...',
+      text: 'Por favor, aguarde enquanto os dados são enviados.',
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      },
+    });
+
+    const payload = formatPayloadForN8n(data);
+    
+    try {
+        const response = await fetch(webhookUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+        });
+
+        const result = await response.json();
+        
+        Swal.close();
+
+        if (result.status === true) {
+            router.push('/success');
         } else {
-            toast({
-                variant: 'destructive',
-                title: 'Erro ao Enviar',
-                description: result.message,
+             Swal.fire({
+                icon: 'error',
+                title: 'Erro no Envio',
+                text: result.message || 'Ocorreu um erro ao enviar os dados. Tente novamente.',
             });
         }
     } catch (error) {
         console.error('Erro no envio do formulário:', error);
-        toast({
-            variant: 'destructive',
+        Swal.fire({
+            icon: 'error',
             title: 'Erro Inesperado',
-            description: 'Ocorreu um erro inesperado. Tente novamente mais tarde.',
+            text: 'Ocorreu um erro inesperado. Verifique sua conexão ou tente novamente mais tarde.',
         });
-    } finally {
-        setIsSubmitting(false);
     }
   }
 
@@ -289,7 +295,7 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
           <FormItem>
             <FormLabel>Etanol (R$)</FormLabel>
             <FormControl>
-              <PriceInput {...field} disabled={disabled} />
+              <PriceInput {...field} disabled={disabled} value={field.value ?? ''} />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -302,7 +308,7 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
           <FormItem>
             <FormLabel>Gasolina Comum (R$)</FormLabel>
             <FormControl>
-              <PriceInput {...field} disabled={disabled} />
+              <PriceInput {...field} disabled={disabled} value={field.value ?? ''} />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -315,7 +321,7 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
           <FormItem>
             <FormLabel>Gasolina Aditivada (R$)</FormLabel>
             <FormControl>
-              <PriceInput {...field} disabled={disabled} />
+              <PriceInput {...field} disabled={disabled} value={field.value ?? ''}/>
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -328,7 +334,7 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
           <FormItem>
             <FormLabel>Diesel S-10 (R$)</FormLabel>
             <FormControl>
-              <PriceInput {...field} disabled={disabled} />
+              <PriceInput {...field} disabled={disabled} value={field.value ?? ''} />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -446,8 +452,8 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
             )})}
           </div>
 
-          <Button type="submit" className="w-full text-lg" disabled={isSubmitting}>
-            {isSubmitting ? (
+          <Button type="submit" className="w-full text-lg" disabled={form.formState.isSubmitting}>
+            {form.formState.isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Enviando...
@@ -458,25 +464,6 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
           </Button>
         </form>
       </Form>
-
-      <AlertDialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2 text-green-500">
-              <CheckCircle2 className="h-6 w-6" />
-              Sucesso!
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              Os dados do período da <strong>{period.toLowerCase()}</strong> foram enviados com sucesso.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogAction onClick={() => setShowSuccessDialog(false)}>
-              Fechar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   );
 }

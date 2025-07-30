@@ -68,33 +68,17 @@ const submitPricesFlow = ai.defineFlow(
     outputSchema: SubmitPricesOutputSchema,
   },
   async (input) => {
-    // Extract just the dataUri from the photo objects
-    const stationImage = input.stationImage?.dataUri;
-
-    const competitors = input.competitors.map(c => {
-        return {
-            id: c.id,
-            name: c.name,
-            prices: c.prices,
-            noChange: c.noChange,
-            image: c.image?.dataUri,
-        }
-    });
-
-    const processedInput = {
-        ...input,
-        stationImage,
-        competitors,
-    };
+    // This flow is a placeholder. The actual submission logic is now handled on the client-side
+    // in price-form.tsx to call the n8n webhook directly.
     
-    console.log('Received price submission:', JSON.stringify(processedInput, null, 2));
+    console.log('Flow received data (client-side handles submission):', JSON.stringify(input, null, 2));
 
-
-    // For now, we'll just simulate a successful submission.
+    // We can keep this flow for potential future server-side processing or logging if needed.
+    // For now, it just simulates a success response as the client handles the actual API call.
 
     return {
       success: true,
-      message: 'Dados enviados com sucesso!',
+      message: 'Dados recebidos pelo fluxo, mas o envio é feito pelo cliente.',
     };
   }
 );
