@@ -260,30 +260,30 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
   const formatPayloadForN8n = (data: PriceFormValues) => {
     const payload: { [key: string]: any } = {};
 
-    payload['Período de Coleta'] = period;
+    payload['Periodo Marcado'] = period;
 
     payload[`(${station.name}) Foto da minha placa`] = data.stationPhoto?.dataUri || '';
     payload[`(${station.name}) Marcou Opção de Alteração de preço`] = data.stationNoChange;
 
     const priceTypes = ['etanol', 'gasolinaComum', 'gasolinaAditivada', 'dieselS10'];
     const paymentMethods = ['vista', 'prazo'];
-    const paymentLabels = {'vista': 'Preços à Vista', 'prazo': 'Preços a Prazo'};
+    const paymentLabels = {'vista': 'Preços a vista', 'prazo': 'Preços a Prazo'};
 
     paymentMethods.forEach(method => {
         priceTypes.forEach(type => {
-            const key = `(${station.name}) ${paymentLabels[method as keyof typeof paymentLabels]}/ ${type}`;
+            const key = `(${station.name}) ${paymentLabels[method as keyof typeof paymentLabels]}/${type}`;
             const value = data.stationPrices?.[method as keyof typeof data.stationPrices]?.[type as keyof typeof emptyPriceSchema.shape];
             payload[key] = value ? value.replace(',', '.') : '';
         });
     });
 
-    data.competitors.forEach((competitor, index) => {
+    data.competitors.forEach((competitor) => {
         payload[`(${competitor.name}) Foto da placa`] = competitor.photo?.dataUri || '';
         payload[`(${competitor.name}) Marcou Opção de Alteração de preço`] = competitor.noChange;
         
         paymentMethods.forEach(method => {
             priceTypes.forEach(type => {
-                const key = `(${competitor.name}) ${paymentLabels[method as keyof typeof paymentLabels]}/ ${type}`;
+                const key = `(${competitor.name}) ${paymentLabels[method as keyof typeof paymentLabels]}/${type}`;
                 const value = competitor.prices?.[method as keyof typeof competitor.prices]?.[type as keyof typeof emptyPriceSchema.shape];
                 payload[key] = value ? value.replace(',', '.') : '';
             });
@@ -533,7 +533,3 @@ const onFormError = (errors: any) => {
     </>
   );
 }
-
-    
-
-    
