@@ -143,26 +143,19 @@ const PhotoCapture = ({ field, label, id }: { field: any, label: string, id: str
 
 const PriceInput = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>((props, ref) => {
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        let value = e.target.value.replace(/[^0-9,]/g, '');
+        let value = e.target.value.replace(/\D/g, ''); // Remove non-digits
         
-        const commaCount = (value.match(/,/g) || []).length;
-        if (commaCount > 1) {
-            const firstCommaIndex = value.indexOf(',');
-            value = value.substring(0, firstCommaIndex + 1) + value.substring(firstCommaIndex + 1).replace(/,/g, '');
+        if (value.length > 3) {
+            value = value.substring(0, 3);
         }
 
-        if (value.includes(',')) {
-            const parts = value.split(',');
-            if (parts[1] && parts[1].length > 2) {
-                parts[1] = parts[1].substring(0, 2);
-            }
-             if (parts[0].length > 2) {
-                parts[0] = parts[0].substring(0, 2);
-            }
-            value = parts.join(',');
-        } else {
-            if (value.length > 2) {
-                value = value.substring(0, 2);
+        if (value.length > 0) {
+            if (value.length === 1) {
+                // Now just wait for more digits
+            } else if (value.length === 2) {
+                 value = `${value[0]},${value[1]}`;
+            } else if (value.length === 3) {
+                 value = `${value[0]},${value.substring(1)}`;
             }
         }
 
@@ -172,7 +165,19 @@ const PriceInput = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLIn
         }
     };
 
-    return <Input type="text" inputMode="decimal" placeholder="0,00" {...props} ref={ref} onChange={handleInputChange} />;
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        const input = e.target as HTMLInputElement;
+        // When user types first digit, add a comma after it.
+        if (input.value.length === 1 && e.key !== 'Backspace' && !input.value.includes(',')) {
+             const newValue = `${input.value},`;
+             if (props.onChange) {
+                const newEvent = { ...e, target: { ...e.target, value: newValue } } as any;
+                props.onChange(newEvent);
+            }
+        }
+    }
+
+    return <Input type="text" inputMode="decimal" placeholder="0,00" {...props} ref={ref} onKeyDown={handleKeyDown} onChange={handleInputChange} />;
 });
 PriceInput.displayName = 'PriceInput';
 
@@ -472,3 +477,5 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
     </>
   );
 }
+
+    
