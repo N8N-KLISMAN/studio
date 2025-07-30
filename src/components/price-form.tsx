@@ -188,12 +188,12 @@ const PhotoCapture = ({ field, label, id }: { field: any, label: string, id: str
 
 const PriceInput = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>((props, ref) => {
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        let value = e.target.value.replace(/\D/g, ''); // Remove all non-digits
+        let value = e.target.value.replace(/\\D/g, ''); // Remove all non-digits
         if (value.length > 3) {
             value = value.substring(0, 3);
         }
         if (value.length > 1) {
-            value = value.replace(/^(\d)(\d{2})$/, '$1,$2');
+            value = value.replace(/^(\\d)(\\d{2})$/, '$1,$2');
         }
 
         if (props.onChange) {
@@ -480,5 +480,3 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
     </>
   );
 }
-
-    
