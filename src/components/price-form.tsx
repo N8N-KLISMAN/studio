@@ -186,7 +186,6 @@ const PhotoCapture = ({ field, label, id, error }: { field: any, label: string, 
                     <input
                         type="file"
                         accept="image/*"
-                        capture="environment"
                         ref={fileInputRef}
                         onChange={handleFileChange}
                         className="hidden"
@@ -537,5 +536,3 @@ const onFormError = (errors: any) => {
     </>
   );
 }
-
-    
