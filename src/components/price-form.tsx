@@ -201,7 +201,6 @@ const PhotoCapture = ({ field, label, id, error }: { field: any, label: string, 
                     <input
                         type="file"
                         accept="image/*"
-                        capture="environment"
                         ref={fileInputRef}
                         onChange={handleFileChange}
                         className="hidden"
@@ -282,19 +281,21 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
     const dateStr = `${day}/${month}/${year}`;
     const timeStr = `${hours}:${minutes}`;
 
-    const dateTimePrefix = `(${dateStr}) (${timeStr})`;
+    const dateTimeFormatted = `(${dateStr}) (${timeStr})`;
     
     const payload: { [key: string]: any } = {};
 
     const extractBase64 = (dataUri: string | undefined) => {
         if (!dataUri) return '';
+        // "data:image/jpeg;base64,..." -> "..."
         return dataUri.split(',')[1] || '';
     };
 
-    payload[`${dateTimePrefix} Periodo Marcado`] = period;
+    payload["Data e Hora do Envio"] = dateTimeFormatted;
+    payload["Periodo Marcado"] = period;
 
-    payload[`${dateTimePrefix} (${station.name}) Foto da minha placa`] = extractBase64(data.stationPhoto?.dataUri);
-    payload[`${dateTimePrefix} (${station.name}) Marcou Opção de Alteração de preço`] = data.stationNoChange;
+    payload[`(${station.name}) Foto da minha placa`] = extractBase64(data.stationPhoto?.dataUri);
+    payload[`(${station.name}) Marcou Opção de Alteração de preço`] = data.stationNoChange;
 
     const priceTypes = ['etanol', 'gasolinaComum', 'gasolinaAditivada', 'dieselS10'];
     const paymentMethods: Array<keyof typeof data.stationPrices> = ['vista', 'prazo'];
@@ -303,7 +304,7 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
     if (!data.stationNoChange) {
         paymentMethods.forEach(method => {
             priceTypes.forEach(type => {
-                const key = `${dateTimePrefix} (${station.name}) ${paymentLabels[method]}/${type}`;
+                const key = `(${station.name}) ${paymentLabels[method]}/${type}`;
                 const stationPriceValue = data.stationPrices?.[method]?.[type as keyof typeof priceSchema.shape];
                 payload[key] = stationPriceValue ? stationPriceValue.replace(',', '.') : '';
             });
@@ -312,13 +313,13 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
 
     data.competitors.forEach((competitor) => {
         const competitorName = `(${competitor.name})`;
-        payload[`${dateTimePrefix} ${competitorName} Foto da placa`] = extractBase64(competitor.photo?.dataUri);
-        payload[`${dateTimePrefix} ${competitorName} Marcou Opção de Alteração de preço`] = competitor.noChange;
+        payload[`${competitorName} Foto da placa`] = extractBase64(competitor.photo?.dataUri);
+        payload[`${competitorName} Marcou Opção de Alteração de preço`] = competitor.noChange;
         
         if (!competitor.noChange) {
             paymentMethods.forEach(method => {
                 priceTypes.forEach(type => {
-                    const key = `${dateTimePrefix} ${competitorName} ${paymentLabels[method]}/${type}`;
+                    const key = `${competitorName} ${paymentLabels[method]}/${type}`;
                     const competitorPriceValue = competitor.prices?.[method]?.[type as keyof typeof priceSchema.shape];
                     payload[key] = competitorPriceValue ? competitorPriceValue.replace(',', '.') : '';
                 });
