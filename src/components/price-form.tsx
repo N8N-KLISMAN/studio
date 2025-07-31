@@ -69,18 +69,33 @@ const competitorSchema = z.object({
       name: z.string(),
       prices: emptyAllPricesSchema, // Initially optional
       noChange: z.boolean().default(false),
-      photo: photoSchema, // Always require a photo now
-    });
+      photo: photoSchema.optional(),
+    }).superRefine((data, ctx) => {
+      if (!data.noChange && !data.photo?.dataUri) {
+         ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ['photo'],
+              message: REQUIRED_FIELD_MESSAGE,
+          });
+      }
+});
 
 
 const priceFormSchema = z.object({
   stationPrices: emptyAllPricesSchema, // Initially optional
   stationNoChange: z.boolean().default(false),
-  stationPhoto: photoSchema,
+  stationPhoto: photoSchema.optional(),
   competitors: z.array(competitorSchema),
 }).superRefine((data, ctx) => {
     // Station validation
     if (!data.stationNoChange) {
+        if (!data.stationPhoto?.dataUri) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ['stationPhoto'],
+                message: REQUIRED_FIELD_MESSAGE,
+            });
+        }
         const requiredFields = priceSchema.safeParse(data.stationPrices.vista);
         if (!requiredFields.success) {
             requiredFields.error.errors.forEach(err => {
@@ -186,6 +201,7 @@ const PhotoCapture = ({ field, label, id, error }: { field: any, label: string, 
                     <input
                         type="file"
                         accept="image/*"
+                        capture="environment"
                         ref={fileInputRef}
                         onChange={handleFileChange}
                         className="hidden"
@@ -268,26 +284,30 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
     const paymentMethods: Array<keyof typeof data.stationPrices> = ['vista', 'prazo'];
     const paymentLabels = {'vista': 'Preços a vista', 'prazo': 'Preços a Prazo'};
 
-    paymentMethods.forEach(method => {
-        priceTypes.forEach(type => {
-            const key = `(${station.name}) ${paymentLabels[method]}/${type}`;
-            const stationPriceValue = data.stationPrices?.[method]?.[type as keyof typeof priceSchema.shape];
-            payload[key] = stationPriceValue ? stationPriceValue.replace(',', '.') : '';
+    if (!data.stationNoChange) {
+        paymentMethods.forEach(method => {
+            priceTypes.forEach(type => {
+                const key = `(${station.name}) ${paymentLabels[method]}/${type}`;
+                const stationPriceValue = data.stationPrices?.[method]?.[type as keyof typeof priceSchema.shape];
+                payload[key] = stationPriceValue ? stationPriceValue.replace(',', '.') : '';
+            });
         });
-    });
+    }
 
     data.competitors.forEach((competitor) => {
         const competitorName = `(${competitor.name})`;
         payload[`${competitorName} Foto da placa`] = competitor.photo?.dataUri || '';
         payload[`${competitorName} Marcou Opção de Alteração de preço`] = competitor.noChange;
         
-        paymentMethods.forEach(method => {
-            priceTypes.forEach(type => {
-                const key = `${competitorName} ${paymentLabels[method]}/${type}`;
-                const competitorPriceValue = competitor.prices?.[method]?.[type as keyof typeof priceSchema.shape];
-                payload[key] = competitorPriceValue ? competitorPriceValue.replace(',', '.') : '';
+        if (!competitor.noChange) {
+            paymentMethods.forEach(method => {
+                priceTypes.forEach(type => {
+                    const key = `${competitorName} ${paymentLabels[method]}/${type}`;
+                    const competitorPriceValue = competitor.prices?.[method]?.[type as keyof typeof priceSchema.shape];
+                    payload[key] = competitorPriceValue ? competitorPriceValue.replace(',', '.') : '';
+                });
             });
-        });
+        }
     });
 
     return payload;
@@ -336,20 +356,21 @@ const onFormError = (errors: any) => {
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify(payload),
-        mode: 'no-cors' // Prevent CORS issues from blocking the request
+        body: JSON.stringify(payload)
     }).then(response => {
-        console.log('Dados enviados para o webhook com sucesso (no-cors).');
-    }).catch(error => {
-        console.error('Erro no envio do formulário em segundo plano:', error);
-    });
-
-    // Immediately redirect to success page
-    // Using a small timeout to allow the loading Swal to be visible briefly
-    setTimeout(() => {
+        console.log('Dados enviados para o webhook com sucesso.');
         Swal.close();
         router.push('/success');
-    }, 500);
+    }).catch(error => {
+        Swal.close();
+        console.error('Erro no envio do formulário:', error);
+         Swal.fire({
+            icon: 'error',
+            title: 'Erro no Envio',
+            text: 'Não foi possível enviar os dados. Por favor, tente novamente.',
+            confirmButtonColor: 'hsl(var(--destructive))'
+        });
+    });
   }
 
   const renderPriceFields = (fieldPrefix: string, disabled: boolean) => (
@@ -372,7 +393,7 @@ const onFormError = (errors: any) => {
         name={`${fieldPrefix}.gasolinaComum`}
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Gasolina Comum (R$)</FormLabel>
+            <FormLabel className="font-semibold">Gasolina Comum (R$)</FormLabel>
             <FormControl>
               <PriceInput {...field} disabled={disabled} value={field.value ?? ''} />
             </FormControl>
