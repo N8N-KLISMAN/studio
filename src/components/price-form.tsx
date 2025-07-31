@@ -273,12 +273,28 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
   const stationNoChange = form.watch('stationNoChange');
 
   const formatPayloadForN8n = (data: PriceFormValues) => {
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, '0');
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const year = now.getFullYear();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const dateStr = `${day}/${month}/${year}`;
+    const timeStr = `${hours}:${minutes}`;
+
+    const dateTimePrefix = `(${dateStr}) (${timeStr})`;
+    
     const payload: { [key: string]: any } = {};
 
-    payload['Periodo Marcado'] = period;
+    const extractBase64 = (dataUri: string | undefined) => {
+        if (!dataUri) return '';
+        return dataUri.split(',')[1] || '';
+    };
 
-    payload[`(${station.name}) Foto da minha placa`] = data.stationPhoto?.dataUri || '';
-    payload[`(${station.name}) Marcou Opção de Alteração de preço`] = data.stationNoChange;
+    payload[`${dateTimePrefix} Periodo Marcado`] = period;
+
+    payload[`${dateTimePrefix} (${station.name}) Foto da minha placa`] = extractBase64(data.stationPhoto?.dataUri);
+    payload[`${dateTimePrefix} (${station.name}) Marcou Opção de Alteração de preço`] = data.stationNoChange;
 
     const priceTypes = ['etanol', 'gasolinaComum', 'gasolinaAditivada', 'dieselS10'];
     const paymentMethods: Array<keyof typeof data.stationPrices> = ['vista', 'prazo'];
@@ -287,7 +303,7 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
     if (!data.stationNoChange) {
         paymentMethods.forEach(method => {
             priceTypes.forEach(type => {
-                const key = `(${station.name}) ${paymentLabels[method]}/${type}`;
+                const key = `${dateTimePrefix} (${station.name}) ${paymentLabels[method]}/${type}`;
                 const stationPriceValue = data.stationPrices?.[method]?.[type as keyof typeof priceSchema.shape];
                 payload[key] = stationPriceValue ? stationPriceValue.replace(',', '.') : '';
             });
@@ -296,13 +312,13 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
 
     data.competitors.forEach((competitor) => {
         const competitorName = `(${competitor.name})`;
-        payload[`${competitorName} Foto da placa`] = competitor.photo?.dataUri || '';
-        payload[`${competitorName} Marcou Opção de Alteração de preço`] = competitor.noChange;
+        payload[`${dateTimePrefix} ${competitorName} Foto da placa`] = extractBase64(competitor.photo?.dataUri);
+        payload[`${dateTimePrefix} ${competitorName} Marcou Opção de Alteração de preço`] = competitor.noChange;
         
         if (!competitor.noChange) {
             paymentMethods.forEach(method => {
                 priceTypes.forEach(type => {
-                    const key = `${competitorName} ${paymentLabels[method]}/${type}`;
+                    const key = `${dateTimePrefix} ${competitorName} ${paymentLabels[method]}/${type}`;
                     const competitorPriceValue = competitor.prices?.[method]?.[type as keyof typeof priceSchema.shape];
                     payload[key] = competitorPriceValue ? competitorPriceValue.replace(',', '.') : '';
                 });
@@ -351,17 +367,18 @@ const onFormError = (errors: any) => {
 
 
     // Send the data in the background
-    fetch(webhookUrl, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload)
-    }).then(response => {
+    try {
+        await fetch(webhookUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload)
+        });
         console.log('Dados enviados para o webhook com sucesso.');
         Swal.close();
         router.push('/success');
-    }).catch(error => {
+    } catch (error) {
         Swal.close();
         console.error('Erro no envio do formulário:', error);
          Swal.fire({
@@ -370,7 +387,7 @@ const onFormError = (errors: any) => {
             text: 'Não foi possível enviar os dados. Por favor, tente novamente.',
             confirmButtonColor: 'hsl(var(--destructive))'
         });
-    });
+    }
   }
 
   const renderPriceFields = (fieldPrefix: string, disabled: boolean) => (
