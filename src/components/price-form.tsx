@@ -99,7 +99,6 @@ const priceFormSchema = z.object({
         const requiredFields = priceSchema.safeParse(data.stationPrices.vista);
         if (!requiredFields.success) {
             requiredFields.error.errors.forEach(err => {
-                // Only add issue if the field is not "Sem dados"
                 const fieldName = err.path[0] as keyof typeof priceSchema.shape;
                 if (data.stationPrices.vista[fieldName] !== 'Sem dados') {
                     ctx.addIssue({
@@ -635,3 +634,5 @@ const onFormError = (errors: any) => {
     </>
   );
 }
+
+    
