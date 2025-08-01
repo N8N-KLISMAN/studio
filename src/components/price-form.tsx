@@ -282,8 +282,8 @@ const PriceInputWithNoData = ({field, disabled}: {field: any, disabled: boolean}
     const isFieldDisabled = disabled || isNoData;
 
     return (
-        <div className="flex flex-col gap-2">
-            <PriceInput {...field} disabled={isFieldDisabled} value={field.value ?? ''} />
+        <div className="flex items-center gap-2">
+            <PriceInput {...field} disabled={isFieldDisabled} value={field.value ?? ''} className="flex-1" />
             {!disabled && (
                  <div className="flex items-center space-x-2">
                     <Checkbox
@@ -497,7 +497,7 @@ const onFormError = (errors: any) => {
   }
 
   const renderPriceFields = (fieldPrefix: string, disabled: boolean) => (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-8">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-4">
       <FormField
         control={form.control}
         name={`${fieldPrefix}.etanol`}
