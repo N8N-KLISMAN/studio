@@ -99,21 +99,28 @@ const priceFormSchema = z.object({
         const requiredFields = priceSchema.safeParse(data.stationPrices.vista);
         if (!requiredFields.success) {
             requiredFields.error.errors.forEach(err => {
-                ctx.addIssue({
-                    code: z.ZodIssueCode.custom,
-                    path: ['stationPrices', 'vista', ...err.path],
-                    message: REQUIRED_FIELD_MESSAGE,
-                })
+                // Only add issue if the field is not "Sem dados"
+                const fieldName = err.path[0] as keyof typeof priceSchema.shape;
+                if (data.stationPrices.vista[fieldName] !== 'Sem dados') {
+                    ctx.addIssue({
+                        code: z.ZodIssueCode.custom,
+                        path: ['stationPrices', 'vista', ...err.path],
+                        message: REQUIRED_FIELD_MESSAGE,
+                    });
+                }
             })
         }
          const requiredFieldsPrazo = priceSchema.safeParse(data.stationPrices.prazo);
         if (!requiredFieldsPrazo.success) {
             requiredFieldsPrazo.error.errors.forEach(err => {
-                ctx.addIssue({
-                    code: z.ZodIssueCode.custom,
-                    path: ['stationPrices', 'prazo', ...err.path],
-                    message: REQUIRED_FIELD_MESSAGE,
-                })
+                const fieldName = err.path[0] as keyof typeof priceSchema.shape;
+                if (data.stationPrices.prazo[fieldName] !== 'Sem dados') {
+                    ctx.addIssue({
+                        code: z.ZodIssueCode.custom,
+                        path: ['stationPrices', 'prazo', ...err.path],
+                        message: REQUIRED_FIELD_MESSAGE,
+                    });
+                }
             })
         }
     }
@@ -124,21 +131,27 @@ const priceFormSchema = z.object({
             const requiredFields = priceSchema.safeParse(competitor.prices.vista);
             if (!requiredFields.success) {
                  requiredFields.error.errors.forEach(err => {
-                    ctx.addIssue({
-                        code: z.ZodIssueCode.custom,
-                        path: [`competitors`, index, 'prices', 'vista', ...err.path],
-                        message: REQUIRED_FIELD_MESSAGE,
-                    })
+                    const fieldName = err.path[0] as keyof typeof priceSchema.shape;
+                    if (competitor.prices.vista[fieldName] !== 'Sem dados') {
+                        ctx.addIssue({
+                            code: z.ZodIssueCode.custom,
+                            path: [`competitors`, index, 'prices', 'vista', ...err.path],
+                            message: REQUIRED_FIELD_MESSAGE,
+                        });
+                    }
                 })
             }
              const requiredFieldsPrazo = priceSchema.safeParse(competitor.prices.prazo);
             if (!requiredFieldsPrazo.success) {
                  requiredFieldsPrazo.error.errors.forEach(err => {
-                    ctx.addIssue({
-                        code: z.ZodIssueCode.custom,
-                        path: [`competitors`, index, 'prices', 'prazo', ...err.path],
-                        message: REQUIRED_FIELD_MESSAGE,
-                    })
+                     const fieldName = err.path[0] as keyof typeof priceSchema.shape;
+                     if (competitor.prices.prazo[fieldName] !== 'Sem dados') {
+                         ctx.addIssue({
+                             code: z.ZodIssueCode.custom,
+                             path: [`competitors`, index, 'prices', 'prazo', ...err.path],
+                             message: REQUIRED_FIELD_MESSAGE,
+                         });
+                     }
                 })
             }
         }
@@ -224,16 +237,18 @@ const PhotoCapture = ({ field, label, id, error }: { field: any, label: string, 
 
 const PriceInput = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>((props, ref) => {
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        let value = e.target.value.replace(/\D/g, ''); 
+        let value = e.target.value;
+        if (value !== 'Sem dados') {
+            value = value.replace(/\D/g, ''); 
         
-        if (value.length > 3) {
-            value = value.substring(0, 3);
-        }
+            if (value.length > 3) {
+                value = value.substring(0, 3);
+            }
 
-        if (value.length > 1) {
-             value = `${value[0]},${value.substring(1)}`;
+            if (value.length > 1) {
+                 value = `${value[0]},${value.substring(1)}`;
+            }
         }
-
 
         if (props.onChange) {
             const newEvent = { ...e, target: { ...e.target, value } };
@@ -244,6 +259,38 @@ const PriceInput = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLIn
     return <Input type="text" inputMode="decimal" placeholder="0,00" {...props} ref={ref} onChange={handleInputChange} />;
 });
 PriceInput.displayName = 'PriceInput';
+
+const PriceInputWithNoData = ({field, disabled}: {field: any, disabled: boolean}) => {
+    const [isNoData, setIsNoData] = useState(false);
+
+    const handleNoDataClick = () => {
+        field.onChange("Sem dados");
+        setIsNoData(true);
+    };
+
+    const isFieldDisabled = disabled || isNoData || field.value === "Sem dados";
+    const showNoDataButton = !isNoData && field.value !== "Sem dados" && !disabled;
+
+
+    return (
+        <div className="flex items-center gap-2">
+            <div className="flex-grow">
+                 <PriceInput {...field} disabled={isFieldDisabled} value={field.value ?? ''} />
+            </div>
+            {showNoDataButton && (
+                 <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleNoDataClick}
+                    className="p-2 h-auto text-xs text-muted-foreground"
+                >
+                    Sem dados?
+                </Button>
+            )}
+        </div>
+    )
+}
 
 
 export function PriceForm({ station, period, managerId }: PriceFormProps) {
@@ -290,7 +337,7 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
         // "data:image/jpeg;base64,..." -> "..."
         return dataUri.split(',')[1] || '';
     };
-
+    
     payload["Data e Hora do Envio"] = dateTimeFormatted;
     payload["Periodo Marcado"] = period;
 
@@ -306,7 +353,12 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
             priceTypes.forEach(type => {
                 const key = `(${station.name}) ${paymentLabels[method]}/${type}`;
                 const stationPriceValue = data.stationPrices?.[method]?.[type as keyof typeof priceSchema.shape];
-                payload[key] = stationPriceValue ? stationPriceValue.replace(',', '.') : '';
+                
+                if(stationPriceValue === 'Sem dados'){
+                     payload[key] = 'Sem dados';
+                } else {
+                    payload[key] = stationPriceValue ? stationPriceValue.replace(',', '.') : '';
+                }
             });
         });
     }
@@ -321,7 +373,12 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
                 priceTypes.forEach(type => {
                     const key = `${competitorName} ${paymentLabels[method]}/${type}`;
                     const competitorPriceValue = competitor.prices?.[method]?.[type as keyof typeof priceSchema.shape];
-                    payload[key] = competitorPriceValue ? competitorPriceValue.replace(',', '.') : '';
+
+                     if(competitorPriceValue === 'Sem dados'){
+                        payload[key] = 'Sem dados';
+                    } else {
+                       payload[key] = competitorPriceValue ? competitorPriceValue.replace(',', '.') : '';
+                    }
                 });
             });
         }
@@ -352,7 +409,6 @@ const onFormError = (errors: any) => {
         return;
     }
     
-    // Show loading alert
     Swal.fire({
       title: 'Enviando...',
       text: 'Por favor, aguarde enquanto os dados são enviados.',
@@ -366,8 +422,6 @@ const onFormError = (errors: any) => {
     
     console.log("Payload to be sent:", JSON.stringify(payload, null, 2));
 
-
-    // Send the data in the background
     try {
         await fetch(webhookUrl, {
             method: 'POST',
@@ -376,9 +430,15 @@ const onFormError = (errors: any) => {
             },
             body: JSON.stringify(payload)
         });
-        console.log('Dados enviados para o webhook com sucesso.');
-        Swal.close();
-        router.push('/success');
+        Swal.fire({
+            icon: 'success',
+            title: 'Sucesso!',
+            text: 'Os dados foram enviados corretamente.',
+            confirmButtonColor: 'hsl(var(--primary))'
+        }).then(() => {
+             router.push(`/success?period=${period}`);
+        });
+
     } catch (error) {
         Swal.close();
         console.error('Erro no envio do formulário:', error);
@@ -400,7 +460,7 @@ const onFormError = (errors: any) => {
           <FormItem>
             <FormLabel>Etanol (R$)</FormLabel>
             <FormControl>
-              <PriceInput {...field} disabled={disabled} value={field.value ?? ''} />
+                <PriceInputWithNoData field={field} disabled={disabled} />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -413,7 +473,7 @@ const onFormError = (errors: any) => {
           <FormItem>
             <FormLabel className="font-semibold">Gasolina Comum (R$)</FormLabel>
             <FormControl>
-              <PriceInput {...field} disabled={disabled} value={field.value ?? ''} />
+              <PriceInputWithNoData field={field} disabled={disabled} />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -426,7 +486,7 @@ const onFormError = (errors: any) => {
           <FormItem>
             <FormLabel>Gasolina Aditivada (R$)</FormLabel>
             <FormControl>
-              <PriceInput {...field} disabled={disabled} value={field.value ?? ''}/>
+              <PriceInputWithNoData field={field} disabled={disabled} />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -439,7 +499,7 @@ const onFormError = (errors: any) => {
           <FormItem>
             <FormLabel>Diesel S-10 (R$)</FormLabel>
             <FormControl>
-              <PriceInput {...field} disabled={disabled} value={field.value ?? ''} />
+              <PriceInputWithNoData field={field} disabled={disabled} />
             </FormControl>
             <FormMessage />
           </FormItem>
