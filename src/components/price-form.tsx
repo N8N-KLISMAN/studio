@@ -265,9 +265,10 @@ const PriceInputWithNoData = ({field, disabled}: {field: any, disabled: boolean}
     const [isNoData, setIsNoData] = useState(field.value === "Sem dados");
     const uniqueId = useRef(`no-data-check-${Math.random()}`).current;
 
-    const handleCheckedChange = (checked: boolean) => {
-        setIsNoData(checked);
-        if (checked) {
+    const handleCheckedChange = (checked: boolean | 'indeterminate') => {
+        const isChecked = !!checked;
+        setIsNoData(isChecked);
+        if (isChecked) {
             field.onChange("Sem dados");
         } else {
             field.onChange(""); // Clear the field
@@ -286,12 +287,14 @@ const PriceInputWithNoData = ({field, disabled}: {field: any, disabled: boolean}
                         checked={isNoData}
                         onCheckedChange={handleCheckedChange}
                     />
-                    <label
-                        htmlFor={uniqueId}
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                    >
-                        Sem dados
-                    </label>
+                    {!isNoData && (
+                        <label
+                            htmlFor={uniqueId}
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                        >
+                            Sem dados
+                        </label>
+                    )}
                 </div>
             )}
         </div>
