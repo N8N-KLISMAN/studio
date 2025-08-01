@@ -22,7 +22,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import type { Station } from '@/lib/types';
-import { useState, forwardRef, useRef } from 'react';
+import { useState, forwardRef, useRef, useEffect } from 'react';
 import { Camera, Fuel, Leaf, Loader2, X } from 'lucide-react';
 import { Separator } from './ui/separator';
 import { Checkbox } from './ui/checkbox';
@@ -265,6 +265,10 @@ const PriceInputWithNoData = ({field, disabled}: {field: any, disabled: boolean}
     const [isNoData, setIsNoData] = useState(field.value === "Sem dados");
     const uniqueId = useRef(`no-data-check-${Math.random()}`).current;
 
+    useEffect(() => {
+        setIsNoData(field.value === "Sem dados");
+    }, [field.value]);
+
     const handleCheckedChange = (checked: boolean | 'indeterminate') => {
         const isChecked = !!checked;
         setIsNoData(isChecked);
@@ -287,7 +291,7 @@ const PriceInputWithNoData = ({field, disabled}: {field: any, disabled: boolean}
                         checked={isNoData}
                         onCheckedChange={handleCheckedChange}
                     />
-                    {!isNoData && (
+                     {!isNoData && (
                         <label
                             htmlFor={uniqueId}
                             className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
@@ -305,10 +309,20 @@ const PriceInputWithNoData = ({field, disabled}: {field: any, disabled: boolean}
 export function PriceForm({ station, period, managerId }: PriceFormProps) {
   const router = useRouter();
   const { toast } = useToast();
+  const storageKey = `price-form-${station.id}-${period}`;
 
-  const form = useForm<z.infer<typeof priceFormSchema>>({
-    resolver: zodResolver(priceFormSchema),
-    defaultValues: {
+  const getInitialValues = () => {
+    if (typeof window !== 'undefined') {
+      const savedData = window.localStorage.getItem(storageKey);
+      if (savedData) {
+        try {
+          return JSON.parse(savedData);
+        } catch (e) {
+          console.error("Failed to parse saved form data", e);
+        }
+      }
+    }
+    return {
       stationPrices: { vista: {}, prazo: {} },
       stationNoChange: false,
       competitors: station.competitors.map((c) => ({
@@ -316,9 +330,22 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
         prices: { vista: {}, prazo: {} },
         noChange: false,
       })),
-    },
-     mode: 'onBlur'
+    };
+  };
+
+  const form = useForm<z.infer<typeof priceFormSchema>>({
+    resolver: zodResolver(priceFormSchema),
+    defaultValues: getInitialValues(),
+    mode: 'onBlur'
   });
+
+  const watchedValues = form.watch();
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(storageKey, JSON.stringify(watchedValues));
+    }
+  }, [watchedValues, storageKey]);
+
 
   const { fields } = useFieldArray({
     name: 'competitors',
@@ -442,6 +469,10 @@ const onFormError = (errors: any) => {
         });
         
         Swal.close();
+
+        if (typeof window !== 'undefined') {
+            window.localStorage.removeItem(storageKey);
+        }
         
         Swal.fire({
             icon: 'success',
@@ -449,6 +480,7 @@ const onFormError = (errors: any) => {
             text: 'Os dados foram enviados corretamente.',
             confirmButtonColor: 'hsl(var(--primary))'
         }).then(() => {
+             form.reset(getInitialValues());
              router.push(`/success?period=${period}`);
         });
 
