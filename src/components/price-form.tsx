@@ -100,19 +100,23 @@ const priceFormSchema = z.object({
         const priceTypes = ['etanol', 'gasolinaComum', 'gasolinaAditivada', 'dieselS10'] as const;
 
         priceTypes.forEach(type => {
-            if (!data.stationPrices.vista[type]) {
-                 ctx.addIssue({
-                    code: z.ZodIssueCode.custom,
-                    path: ['stationPrices', 'vista', type],
-                    message: REQUIRED_FIELD_MESSAGE,
-                });
+            if (!data.stationPrices.vista[type] || data.stationPrices.vista[type] === '') {
+                if (data.stationPrices.vista[type] !== 'Sem dados') {
+                    ctx.addIssue({
+                        code: z.ZodIssueCode.custom,
+                        path: ['stationPrices', 'vista', type],
+                        message: REQUIRED_FIELD_MESSAGE,
+                    });
+                }
             }
-            if (!data.stationPrices.prazo[type]) {
-                 ctx.addIssue({
-                    code: z.ZodIssueCode.custom,
-                    path: ['stationPrices', 'prazo', type],
-                    message: REQUIRED_FIELD_MESSAGE,
-                });
+            if (!data.stationPrices.prazo[type] || data.stationPrices.prazo[type] === '') {
+                 if (data.stationPrices.prazo[type] !== 'Sem dados') {
+                    ctx.addIssue({
+                        code: z.ZodIssueCode.custom,
+                        path: ['stationPrices', 'prazo', type],
+                        message: REQUIRED_FIELD_MESSAGE,
+                    });
+                }
             }
         });
     }
@@ -122,19 +126,23 @@ const priceFormSchema = z.object({
         if (!competitor.noChange) {
             const priceTypes = ['etanol', 'gasolinaComum', 'gasolinaAditivada', 'dieselS10'] as const;
             priceTypes.forEach(type => {
-                if (!competitor.prices.vista[type]) {
-                     ctx.addIssue({
-                        code: z.ZodIssueCode.custom,
-                        path: [`competitors`, index, 'prices', 'vista', type],
-                        message: REQUIRED_FIELD_MESSAGE,
-                    });
+                if (!competitor.prices.vista[type] || competitor.prices.vista[type] === '') {
+                     if (competitor.prices.vista[type] !== 'Sem dados') {
+                        ctx.addIssue({
+                            code: z.ZodIssueCode.custom,
+                            path: [`competitors`, index, 'prices', 'vista', type],
+                            message: REQUIRED_FIELD_MESSAGE,
+                        });
+                    }
                 }
-                if (!competitor.prices.prazo[type]) {
-                     ctx.addIssue({
-                        code: z.ZodIssueCode.custom,
-                        path: [`competitors`, index, 'prices', 'prazo', type],
-                        message: REQUIRED_FIELD_MESSAGE,
-                    });
+                if (!competitor.prices.prazo[type] || competitor.prices.prazo[type] === '') {
+                     if (competitor.prices.prazo[type] !== 'Sem dados') {
+                        ctx.addIssue({
+                            code: z.ZodIssueCode.custom,
+                            path: [`competitors`, index, 'prices', 'prazo', type],
+                            message: REQUIRED_FIELD_MESSAGE,
+                        });
+                    }
                 }
             });
         }
@@ -169,7 +177,7 @@ const PhotoCapture = ({ field, label, id, error }: { field: any, label: string, 
     const handleRemoveImage = (e: React.MouseEvent<HTMLButtonElement>) => {
         e.preventDefault();
         e.stopPropagation();
-        field.onChange(undefined);
+        field.onChange(null);
         if (fileInputRef.current) {
             fileInputRef.current.value = '';
         }
@@ -664,5 +672,3 @@ const onFormError = (errors: any) => {
     </>
   );
 }
-
-    
