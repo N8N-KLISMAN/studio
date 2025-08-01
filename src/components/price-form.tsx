@@ -213,6 +213,7 @@ const PhotoCapture = ({ field, label, id, error }: { field: any, label: string, 
                     <input
                         type="file"
                         accept="image/*"
+                        capture="environment"
                         ref={fileInputRef}
                         onChange={handleFileChange}
                         className="hidden"
@@ -259,33 +260,39 @@ const PriceInput = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLIn
 });
 PriceInput.displayName = 'PriceInput';
 
-const PriceInputWithNoData = ({field, disabled}: {field: any, disabled: boolean}) => {
-    const [isNoData, setIsNoData] = useState(false);
 
-    const handleNoDataClick = () => {
-        field.onChange("Sem dados");
-        setIsNoData(true);
+const PriceInputWithNoData = ({field, disabled}: {field: any, disabled: boolean}) => {
+    const [isNoData, setIsNoData] = useState(field.value === "Sem dados");
+    const uniqueId = useRef(`no-data-check-${Math.random()}`).current;
+
+    const handleCheckedChange = (checked: boolean) => {
+        setIsNoData(checked);
+        if (checked) {
+            field.onChange("Sem dados");
+        } else {
+            field.onChange(""); // Clear the field
+        }
     };
 
-    const isFieldDisabled = disabled || isNoData || field.value === "Sem dados";
-    const showNoDataButton = !isNoData && field.value !== "Sem dados" && !disabled;
-
+    const isFieldDisabled = disabled || isNoData;
 
     return (
-        <div className="flex items-center gap-2">
-            <div className="flex-grow">
-                 <PriceInput {...field} disabled={isFieldDisabled} value={field.value ?? ''} />
-            </div>
-            {showNoDataButton && (
-                 <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleNoDataClick}
-                    className="p-2 h-auto text-xs text-muted-foreground"
-                >
-                    Sem dados?
-                </Button>
+        <div className="flex flex-col gap-2">
+            <PriceInput {...field} disabled={isFieldDisabled} value={field.value ?? ''} />
+            {!disabled && (
+                 <div className="flex items-center space-x-2">
+                    <Checkbox
+                        id={uniqueId}
+                        checked={isNoData}
+                        onCheckedChange={handleCheckedChange}
+                    />
+                    <label
+                        htmlFor={uniqueId}
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    >
+                        Sem dados
+                    </label>
+                </div>
             )}
         </div>
     )
@@ -333,15 +340,16 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
 
     const extractBase64 = (dataUri: string | undefined) => {
         if (!dataUri) return '';
-        // "data:image/jpeg;base64,..." -> "..."
         return dataUri.split(',')[1] || '';
     };
     
     payload["Data e Hora do Envio"] = dateTimeFormatted;
     payload["Periodo Marcado"] = period;
+    payload["Nome do Posto"] = station.name;
+
 
     payload[`(${station.name}) Foto da minha placa`] = extractBase64(data.stationPhoto?.dataUri);
-    payload[`(${station.name}) Marcou Opção de Alteração de preço`] = data.stationNoChange;
+    payload[`(${station.name}) Marcou Opção de Alteração de preço`] = data.stationNoChange ? 'SIM' : 'NÃO';
 
     const priceTypes = ['etanol', 'gasolinaComum', 'gasolinaAditivada', 'dieselS10'];
     const paymentMethods: Array<keyof typeof data.stationPrices> = ['vista', 'prazo'];
@@ -365,7 +373,7 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
     data.competitors.forEach((competitor) => {
         const competitorName = `(${competitor.name})`;
         payload[`${competitorName} Foto da placa`] = extractBase64(competitor.photo?.dataUri);
-        payload[`${competitorName} Marcou Opção de Alteração de preço`] = competitor.noChange;
+        payload[`${competitorName} Marcou Opção de Alteração de preço`] = competitor.noChange ? 'SIM' : 'NÃO';
         
         if (!competitor.noChange) {
             paymentMethods.forEach(method => {
@@ -429,6 +437,9 @@ const onFormError = (errors: any) => {
             },
             body: JSON.stringify(payload)
         });
+        
+        Swal.close();
+        
         Swal.fire({
             icon: 'success',
             title: 'Sucesso!',
@@ -451,7 +462,7 @@ const onFormError = (errors: any) => {
   }
 
   const renderPriceFields = (fieldPrefix: string, disabled: boolean) => (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-8">
       <FormField
         control={form.control}
         name={`${fieldPrefix}.etanol`}
@@ -634,5 +645,3 @@ const onFormError = (errors: any) => {
     </>
   );
 }
-
-    
