@@ -37,7 +37,7 @@ const photoSchema = z.object({
     dataUri: z.string().min(1, { message: REQUIRED_FIELD_MESSAGE }),
 });
 
-const priceValueSchema = z.string().refine(val => val.trim().length > 0, { message: REQUIRED_FIELD_MESSAGE });
+const priceValueSchema = z.string().refine(val => val.trim().length > 0 && val !== 'Sem dados', { message: REQUIRED_FIELD_MESSAGE });
 
 const priceSchema = z.object({
     etanol: priceValueSchema,
@@ -96,63 +96,47 @@ const priceFormSchema = z.object({
                 message: REQUIRED_FIELD_MESSAGE,
             });
         }
-        const requiredFields = priceSchema.safeParse(data.stationPrices.vista);
-        if (!requiredFields.success) {
-            requiredFields.error.errors.forEach(err => {
-                const fieldName = err.path[0] as keyof typeof priceSchema.shape;
-                if (data.stationPrices.vista[fieldName] !== 'Sem dados') {
-                    ctx.addIssue({
-                        code: z.ZodIssueCode.custom,
-                        path: ['stationPrices', 'vista', ...err.path],
-                        message: REQUIRED_FIELD_MESSAGE,
-                    });
-                }
-            })
-        }
-         const requiredFieldsPrazo = priceSchema.safeParse(data.stationPrices.prazo);
-        if (!requiredFieldsPrazo.success) {
-            requiredFieldsPrazo.error.errors.forEach(err => {
-                const fieldName = err.path[0] as keyof typeof priceSchema.shape;
-                if (data.stationPrices.prazo[fieldName] !== 'Sem dados') {
-                    ctx.addIssue({
-                        code: z.ZodIssueCode.custom,
-                        path: ['stationPrices', 'prazo', ...err.path],
-                        message: REQUIRED_FIELD_MESSAGE,
-                    });
-                }
-            })
-        }
+        
+        const priceTypes = ['etanol', 'gasolinaComum', 'gasolinaAditivada', 'dieselS10'] as const;
+
+        priceTypes.forEach(type => {
+            if (!data.stationPrices.vista[type]) {
+                 ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    path: ['stationPrices', 'vista', type],
+                    message: REQUIRED_FIELD_MESSAGE,
+                });
+            }
+            if (!data.stationPrices.prazo[type]) {
+                 ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    path: ['stationPrices', 'prazo', type],
+                    message: REQUIRED_FIELD_MESSAGE,
+                });
+            }
+        });
     }
 
     // Competitors validation
     data.competitors.forEach((competitor, index) => {
         if (!competitor.noChange) {
-            const requiredFields = priceSchema.safeParse(competitor.prices.vista);
-            if (!requiredFields.success) {
-                 requiredFields.error.errors.forEach(err => {
-                    const fieldName = err.path[0] as keyof typeof priceSchema.shape;
-                    if (competitor.prices.vista[fieldName] !== 'Sem dados') {
-                        ctx.addIssue({
-                            code: z.ZodIssueCode.custom,
-                            path: [`competitors`, index, 'prices', 'vista', ...err.path],
-                            message: REQUIRED_FIELD_MESSAGE,
-                        });
-                    }
-                })
-            }
-             const requiredFieldsPrazo = priceSchema.safeParse(competitor.prices.prazo);
-            if (!requiredFieldsPrazo.success) {
-                 requiredFieldsPrazo.error.errors.forEach(err => {
-                     const fieldName = err.path[0] as keyof typeof priceSchema.shape;
-                     if (competitor.prices.prazo[fieldName] !== 'Sem dados') {
-                         ctx.addIssue({
-                             code: z.ZodIssueCode.custom,
-                             path: [`competitors`, index, 'prices', 'prazo', ...err.path],
-                             message: REQUIRED_FIELD_MESSAGE,
-                         });
-                     }
-                })
-            }
+            const priceTypes = ['etanol', 'gasolinaComum', 'gasolinaAditivada', 'dieselS10'] as const;
+            priceTypes.forEach(type => {
+                if (!competitor.prices.vista[type]) {
+                     ctx.addIssue({
+                        code: z.ZodIssueCode.custom,
+                        path: [`competitors`, index, 'prices', 'vista', type],
+                        message: REQUIRED_FIELD_MESSAGE,
+                    });
+                }
+                if (!competitor.prices.prazo[type]) {
+                     ctx.addIssue({
+                        code: z.ZodIssueCode.custom,
+                        path: [`competitors`, index, 'prices', 'prazo', type],
+                        message: REQUIRED_FIELD_MESSAGE,
+                    });
+                }
+            });
         }
     });
 });
@@ -382,7 +366,7 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
     payload[`(${station.name}) Marcou Opção de Alteração de preço`] = data.stationNoChange ? 'SIM' : 'NÃO';
 
     const priceTypes = ['etanol', 'gasolinaComum', 'gasolinaAditivada', 'dieselS10'];
-    const paymentMethods: Array<keyof typeof data.stationPrices> = ['vista', 'prazo'];
+    const paymentMethods: Array<keyof PriceFormValues['stationPrices']> = ['vista', 'prazo'];
     const paymentLabels = {'vista': 'Preços a vista', 'prazo': 'Preços a Prazo'};
 
     if (!data.stationNoChange) {
@@ -680,3 +664,5 @@ const onFormError = (errors: any) => {
     </>
   );
 }
+
+    
