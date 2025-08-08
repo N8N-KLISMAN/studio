@@ -135,6 +135,7 @@ interface PriceFormProps {
   period: 'Manhã' | 'Tarde';
   managerId: string;
   onStationUpdate: (station: Station) => void;
+  numberOfCompetitors: number;
 }
 
 const EditableTitle = ({
@@ -300,7 +301,7 @@ const PriceInputWithNoData = ({field, disabled}: {field: any, disabled: boolean}
 }
 
 
-export function PriceForm({ station, period, managerId, onStationUpdate }: PriceFormProps) {
+export function PriceForm({ station, period, managerId, onStationUpdate, numberOfCompetitors }: PriceFormProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
@@ -689,59 +690,61 @@ const onFormError = (errors: any) => {
               const competitorNoChange = form.watch(`competitors.${index}.noChange`);
              
               return (
-              <Card key={field.id}>
-                <CardHeader>
-                    <EditableTitle
-                        Icon={Fuel}
-                        name={form.watch(`competitors.${index}.name`)}
-                        onNameChange={(newName) => handleCompetitorNameChange(index, newName)}
-                    />
-                </CardHeader>
-                <CardContent className="space-y-6">
+              <div key={field.id} className={index < numberOfCompetitors ? 'block' : 'hidden'}>
+                <Card>
+                  <CardHeader>
+                      <EditableTitle
+                          Icon={Fuel}
+                          name={form.watch(`competitors.${index}.name`)}
+                          onNameChange={(newName) => handleCompetitorNameChange(index, newName)}
+                      />
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                      <FormField
+                          control={form.control}
+                          name={`competitors.${index}.photo`}
+                          render={({ field: formField, fieldState }) => (
+                             <PhotoCapture 
+                                  field={formField} 
+                                  label={`Tirar foto da placa do ${form.watch(`competitors.${index}.name`)}`} 
+                                  id={`competitors.${index}.photo`}
+                                  error={fieldState.error?.message}
+                              />
+                          )}
+                      />
                     <FormField
-                        control={form.control}
-                        name={`competitors.${index}.photo`}
-                        render={({ field: formField, fieldState }) => (
-                           <PhotoCapture 
-                                field={formField} 
-                                label={`Tirar foto da placa do ${form.watch(`competitors.${index}.name`)}`} 
-                                id={`competitors.${index}.photo`}
-                                error={fieldState.error?.message}
+                      control={form.control}
+                      name={`competitors.${index}.noChange`}
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
                             />
-                        )}
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Este concorrente não alterou os preços
+                          </FormLabel>
+                        </FormItem>
+                      )}
                     />
-                  <FormField
-                    control={form.control}
-                    name={`competitors.${index}.noChange`}
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center space-x-3 space-y-0">
-                        <FormControl>
-                          <Checkbox
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                        <FormLabel className="font-normal">
-                          Este concorrente não alterou os preços
-                        </FormLabel>
-                      </FormItem>
+                    {!competitorNoChange && (
+                      <div className="space-y-6">
+                          <div>
+                              <h3 className="text-lg font-semibold mb-4">Preços à Vista</h3>
+                              {renderPriceFields(`competitors.${index}.prices.vista`, competitorNoChange)}
+                          </div>
+                          <Separator />
+                          <div>
+                              <h3 className="text-lg font-semibold mb-4">Preços a Prazo</h3>
+                              {renderPriceFields(`competitors.${index}.prices.prazo`, competitorNoChange)}
+                          </div>
+                      </div>
                     )}
-                  />
-                  {!competitorNoChange && (
-                    <div className="space-y-6">
-                        <div>
-                            <h3 className="text-lg font-semibold mb-4">Preços à Vista</h3>
-                            {renderPriceFields(`competitors.${index}.prices.vista`, competitorNoChange)}
-                        </div>
-                        <Separator />
-                        <div>
-                            <h3 className="text-lg font-semibold mb-4">Preços a Prazo</h3>
-                            {renderPriceFields(`competitors.${index}.prices.prazo`, competitorNoChange)}
-                        </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              </div>
             )})}
           </div>
           
@@ -759,4 +762,3 @@ const onFormError = (errors: any) => {
     </FormProvider>
   );
 }
-

@@ -81,10 +81,6 @@ export default function DashboardPage() {
         window.localStorage.setItem('stationData', JSON.stringify(station));
      }
   };
-  
-  const getVisibleCompetitors = (competitors: Competitor[]): Competitor[] => {
-      return competitors.slice(0, numberOfCompetitors);
-  }
 
   if (isLoading) {
     return (
@@ -108,12 +104,6 @@ export default function DashboardPage() {
       </div>
     );
   }
-  
-  const stationForForm = station ? {
-      ...station,
-      competitors: getVisibleCompetitors(station.competitors),
-  } : null;
-
 
   return (
     <div className="min-h-screen bg-background">
@@ -137,7 +127,7 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        {stationForForm && managerId && (
+        {station && managerId && (
             <Tabs defaultValue="manha" className="w-full">
             <TabsList className="grid w-full grid-cols-2 md:w-[400px] mx-auto">
                 <TabsTrigger value="manha">Manhã</TabsTrigger>
@@ -145,20 +135,22 @@ export default function DashboardPage() {
             </TabsList>
             <TabsContent value="manha">
                 <PriceForm 
-                station={stationForForm} 
+                station={station} 
                 period="Manhã" 
                 managerId={managerId} 
                 onStationUpdate={handleStationUpdate}
-                key={`form-manha-${station.id}-${numberOfCompetitors}`}
+                numberOfCompetitors={numberOfCompetitors}
+                key={`form-manha-${station.id}`}
                 />
             </TabsContent>
             <TabsContent value="tarde">
                 <PriceForm 
-                station={stationForForm} 
+                station={station} 
                 period="Tarde" 
                 managerId={managerId}
                 onStationUpdate={handleStationUpdate}
-                key={`form-tarde-${station.id}-${numberOfCompetitors}`}
+                numberOfCompetitors={numberOfCompetitors}
+                key={`form-tarde-${station.id}`}
                 />
             </TabsContent>
             </Tabs>
