@@ -46,7 +46,10 @@ export default function DashboardPage() {
       
       if (savedCompetitorCount !== null && !isNaN(savedCompetitorCount)) {
           setNumberOfCompetitors(savedCompetitorCount);
+      } else {
+          setNumberOfCompetitors(10); // Default value
       }
+
 
       const baseStation = STATIONS[0];
 
@@ -72,10 +75,10 @@ export default function DashboardPage() {
      }
   };
 
-  const handleStationUpdate = (updatedStation: Station) => {
-    setStation(updatedStation);
+  const handleStationUpdate = (station: Station) => {
+    setStation(station);
      if (isClient) {
-        window.localStorage.setItem('stationData', JSON.stringify(updatedStation));
+        window.localStorage.setItem('stationData', JSON.stringify(station));
      }
   };
   
@@ -83,7 +86,7 @@ export default function DashboardPage() {
       return competitors.slice(0, numberOfCompetitors);
   }
 
-  if (!isClient || isLoading || !station || !managerId) {
+  if (isLoading) {
     return (
        <div className="min-h-screen bg-background">
         <header className="bg-card shadow-sm border-b border-border">
@@ -106,10 +109,10 @@ export default function DashboardPage() {
     );
   }
   
-  const stationForForm = {
+  const stationForForm = station ? {
       ...station,
       competitors: getVisibleCompetitors(station.competitors),
-  };
+  } : null;
 
 
   return (
@@ -134,30 +137,32 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        <Tabs defaultValue="manha" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 md:w-[400px] mx-auto">
-            <TabsTrigger value="manha">Manhã</TabsTrigger>
-            <TabsTrigger value="tarde">Tarde</TabsTrigger>
-          </TabsList>
-          <TabsContent value="manha">
-            <PriceForm 
-              station={stationForForm} 
-              period="Manhã" 
-              managerId={managerId} 
-              onStationUpdate={handleStationUpdate}
-              key={`form-manha-${station.id}-${numberOfCompetitors}`}
-            />
-          </TabsContent>
-          <TabsContent value="tarde">
-            <PriceForm 
-              station={stationForForm} 
-              period="Tarde" 
-              managerId={managerId}
-              onStationUpdate={handleStationUpdate}
-              key={`form-tarde-${station.id}-${numberOfCompetitors}`}
-            />
-          </TabsContent>
-        </Tabs>
+        {stationForForm && managerId && (
+            <Tabs defaultValue="manha" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 md:w-[400px] mx-auto">
+                <TabsTrigger value="manha">Manhã</TabsTrigger>
+                <TabsTrigger value="tarde">Tarde</TabsTrigger>
+            </TabsList>
+            <TabsContent value="manha">
+                <PriceForm 
+                station={stationForForm} 
+                period="Manhã" 
+                managerId={managerId} 
+                onStationUpdate={handleStationUpdate}
+                key={`form-manha-${station.id}-${numberOfCompetitors}`}
+                />
+            </TabsContent>
+            <TabsContent value="tarde">
+                <PriceForm 
+                station={stationForForm} 
+                period="Tarde" 
+                managerId={managerId}
+                onStationUpdate={handleStationUpdate}
+                key={`form-tarde-${station.id}-${numberOfCompetitors}`}
+                />
+            </TabsContent>
+            </Tabs>
+        )}
       </main>
     </div>
   );
