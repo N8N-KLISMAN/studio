@@ -2,7 +2,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useFieldArray, useForm } from 'react-hook-form';
+import { useFieldArray, useForm, useFormContext, FormProvider } from 'react-hook-form';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import {
@@ -54,11 +54,6 @@ const emptyPriceSchema = z.object({
     dieselS10: z.string().optional(),
 })
 
-const allPricesSchema = z.object({
-  vista: priceSchema,
-  prazo: priceSchema,
-});
-
 const emptyAllPricesSchema = z.object({
   vista: emptyPriceSchema,
   prazo: emptyPriceSchema,
@@ -82,7 +77,7 @@ const competitorSchema = z.object({
 });
 
 
-const priceFormSchema = z.object({
+export const priceFormSchema = z.object({
   stationName: z.string().min(1, { message: "Nome é obrigatório" }),
   stationPrices: emptyAllPricesSchema, // Initially optional
   stationNoChange: z.boolean().default(false),
@@ -144,7 +139,7 @@ const priceFormSchema = z.object({
 });
 
 
-type PriceFormValues = z.infer<typeof priceFormSchema>;
+export type PriceFormValues = z.infer<typeof priceFormSchema>;
 
 interface PriceFormProps {
   station: Station;
@@ -319,56 +314,12 @@ const PriceInputWithNoData = ({field, disabled}: {field: any, disabled: boolean}
 export function PriceForm({ station, period, managerId, onStationUpdate }: PriceFormProps) {
   const router = useRouter();
   const { toast } = useToast();
-  const [isClient, setIsClient] = useState(false);
-  const storageKey = `price-form-${station.id}-${period}`;
-
-  const form = useForm<PriceFormValues>({
-    resolver: zodResolver(priceFormSchema),
-    defaultValues: {
-      stationName: station.name,
-      stationPrices: { vista: {}, prazo: {} },
-      stationNoChange: false,
-      competitors: station.competitors.map((c) => ({
-        ...c,
-        prices: { vista: {}, prazo: {} },
-        noChange: false,
-      })),
-    },
-    mode: 'onBlur',
-  });
-
+  const form = useFormContext<PriceFormValues>();
+  
   const { fields } = useFieldArray({
     name: 'competitors',
     control: form.control,
   });
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  useEffect(() => {
-    if (isClient) {
-      const savedData = window.localStorage.getItem(storageKey);
-      if (savedData) {
-        try {
-          const parsedData = JSON.parse(savedData);
-          form.reset(parsedData);
-        } catch (e) {
-          console.error("Failed to parse saved form data", e);
-        }
-      }
-    }
-  }, [isClient, storageKey, form]);
-
-
-  useEffect(() => {
-    if (isClient) {
-      const subscription = form.watch((value) => {
-        window.localStorage.setItem(storageKey, JSON.stringify(value));
-      });
-      return () => subscription.unsubscribe();
-    }
-  }, [isClient, storageKey, form]);
   
   const stationNoChange = form.watch('stationNoChange');
 
@@ -379,6 +330,8 @@ export function PriceForm({ station, period, managerId, onStationUpdate }: Price
 
   const handleCompetitorNameChange = (index: number, newName: string) => {
     form.setValue(`competitors.${index}.name`, newName);
+    const updatedCompetitors = form.getValues('competitors').map((c, i) => i === index ? { ...c, name: newName } : c);
+    onStationUpdate({ ...station, competitors: updatedCompetitors });
   };
 
 
@@ -419,7 +372,7 @@ export function PriceForm({ station, period, managerId, onStationUpdate }: Price
         paymentMethods.forEach(method => {
             priceTypes.forEach(type => {
                 const key = `${stationPrefix} ${paymentLabels[method]}/${type}`;
-                const stationPriceValue = data.stationPrices?.[method]?.[type as keyof typeof priceSchema.shape];
+                const stationPriceValue = data.stationPrices?.[method]?.[type as keyof z.infer<typeof priceSchema>];
                 
                 if(stationPriceValue === 'Sem dados'){
                      payload[key] = 'Sem dados';
@@ -442,7 +395,7 @@ export function PriceForm({ station, period, managerId, onStationUpdate }: Price
             paymentMethods.forEach(method => {
                 priceTypes.forEach(type => {
                     const key = `${competitorPrefix} ${paymentLabels[method]}/${type}`;
-                    const competitorPriceValue = competitor.prices?.[method]?.[type as keyof typeof priceSchema.shape];
+                    const competitorPriceValue = competitor.prices?.[method]?.[type as keyof z.infer<typeof priceSchema>];
 
                      if(competitorPriceValue === 'Sem dados'){
                         payload[key] = 'Sem dados';
@@ -513,28 +466,11 @@ const onFormError = (errors: any) => {
         
         Swal.close();
         
-        // Get current data and selectively clear photo fields
         const currentData = form.getValues();
         currentData.stationPhoto = undefined;
         currentData.competitors.forEach(c => c.photo = undefined);
         
-        // Reset the form with prices and names intact
         form.reset(currentData);
-
-        // Also update localStorage to reflect the cleared photos
-        if (typeof window !== 'undefined') {
-          const savedData = window.localStorage.getItem(storageKey);
-          if (savedData) {
-            try {
-              const parsedData = JSON.parse(savedData);
-              parsedData.stationPhoto = undefined;
-              parsedData.competitors.forEach((c: any) => c.photo = undefined);
-              window.localStorage.setItem(storageKey, JSON.stringify(parsedData));
-            } catch (e) {
-               console.error("Failed to clear photo data from localStorage", e);
-            }
-          }
-        }
         
         Swal.fire({
             icon: 'success',
