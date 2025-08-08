@@ -303,40 +303,46 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
   const { toast } = useToast();
   const storageKey = `price-form-${station.id}-${period}`;
 
-  const getInitialValues = () => {
+  const defaultValues = {
+    stationPrices: { vista: {}, prazo: {} },
+    stationNoChange: false,
+    competitors: station.competitors.map((c) => ({
+      ...c,
+      prices: { vista: {}, prazo: {} },
+      noChange: false,
+    })),
+  };
+
+  const form = useForm<z.infer<typeof priceFormSchema>>({
+    resolver: zodResolver(priceFormSchema),
+    defaultValues,
+    mode: 'onBlur'
+  });
+
+  const watchedValues = form.watch();
+
+  useEffect(() => {
+    // Save to localStorage on change
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(storageKey, JSON.stringify(watchedValues));
+    }
+  }, [watchedValues, storageKey]);
+
+  useEffect(() => {
+    // Load from localStorage on mount, only on client
     if (typeof window !== 'undefined') {
       const savedData = window.localStorage.getItem(storageKey);
       if (savedData) {
         try {
-          return JSON.parse(savedData);
+          const parsedData = JSON.parse(savedData);
+          form.reset(parsedData);
         } catch (e) {
           console.error("Failed to parse saved form data", e);
         }
       }
     }
-    return {
-      stationPrices: { vista: {}, prazo: {} },
-      stationNoChange: false,
-      competitors: station.competitors.map((c) => ({
-        ...c,
-        prices: { vista: {}, prazo: {} },
-        noChange: false,
-      })),
-    };
-  };
-
-  const form = useForm<z.infer<typeof priceFormSchema>>({
-    resolver: zodResolver(priceFormSchema),
-    defaultValues: getInitialValues(),
-    mode: 'onBlur'
-  });
-
-  const watchedValues = form.watch();
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(storageKey, JSON.stringify(watchedValues));
-    }
-  }, [watchedValues, storageKey]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storageKey, form.reset]);
 
 
   const { fields } = useFieldArray({
@@ -472,7 +478,7 @@ const onFormError = (errors: any) => {
             text: 'Os dados foram enviados corretamente.',
             confirmButtonColor: 'hsl(var(--primary))'
         }).then(() => {
-             form.reset(getInitialValues());
+             form.reset(defaultValues);
              router.push(`/success?period=${period}`);
         });
 
@@ -672,3 +678,5 @@ const onFormError = (errors: any) => {
     </>
   );
 }
+
+    
