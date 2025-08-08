@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/card';
 import type { Station } from '@/lib/types';
 import { useState, forwardRef, useRef, useEffect } from 'react';
-import { Camera, Fuel, Leaf, Pencil } from 'lucide-react';
+import { Camera, Copy, Fuel, Leaf, Pencil } from 'lucide-react';
 import { Separator } from './ui/separator';
 import { Checkbox } from './ui/checkbox';
 import Image from 'next/image';
@@ -36,7 +36,7 @@ const REQUIRED_FIELD_MESSAGE = "Preencha Aqui!";
 
 const photoSchema = z.object({
     dataUri: z.string().min(1, { message: REQUIRED_FIELD_MESSAGE }),
-});
+}).optional();
 
 const priceValueSchema = z.string().refine(val => val.trim().length > 0, { message: REQUIRED_FIELD_MESSAGE });
 
@@ -65,7 +65,7 @@ const competitorSchema = z.object({
       name: z.string().min(1, { message: "Nome é obrigatório" }),
       prices: emptyAllPricesSchema, // Initially optional
       noChange: z.boolean().default(false),
-      photo: photoSchema.optional(),
+      photo: photoSchema,
     }).superRefine((data, ctx) => {
       if (!data.noChange && !data.photo?.dataUri) {
          ctx.addIssue({
@@ -81,7 +81,7 @@ export const priceFormSchema = z.object({
   stationName: z.string().min(1, { message: "Nome é obrigatório" }),
   stationPrices: emptyAllPricesSchema, // Initially optional
   stationNoChange: z.boolean().default(false),
-  stationPhoto: photoSchema.optional(),
+  stationPhoto: photoSchema,
   competitors: z.array(competitorSchema),
 }).superRefine((data, ctx) => {
     // Station validation
@@ -371,13 +371,52 @@ export function PriceForm({ station, period, managerId, onStationUpdate }: Price
 
   const handleStationNameChange = (newName: string) => {
     form.setValue('stationName', newName);
-    onStationUpdate({ ...station, name: newName });
+    // No longer calling onStationUpdate here to prevent re-renders on parent
   };
 
   const handleCompetitorNameChange = (index: number, newName: string) => {
     form.setValue(`competitors.${index}.name`, newName);
-    const updatedCompetitors = form.getValues('competitors').map((c, i) => i === index ? { ...c, name: newName } : c);
-    onStationUpdate({ ...station, competitors: updatedCompetitors });
+    // No longer calling onStationUpdate here to prevent re-renders on parent
+  };
+
+  const copyMorningData = () => {
+    const morningStorageKey = `price-form-${station.id}-manha`;
+    const morningDataString = window.localStorage.getItem(morningStorageKey);
+
+    if (morningDataString) {
+      try {
+        const morningData: PriceFormValues = JSON.parse(morningDataString);
+        
+        // Copy station prices
+        form.setValue('stationPrices', morningData.stationPrices);
+        form.setValue('stationNoChange', morningData.stationNoChange);
+
+        // Copy competitor prices
+        morningData.competitors.forEach((competitor, index) => {
+          form.setValue(`competitors.${index}.prices`, competitor.prices);
+          form.setValue(`competitors.${index}.noChange`, competitor.noChange);
+        });
+
+        toast({
+          title: 'Dados Copiados!',
+          description: 'Os preços da manhã foram copiados para o formulário da tarde.',
+        });
+
+      } catch (e) {
+        console.error("Failed to parse or copy morning data", e);
+        toast({
+          variant: 'destructive',
+          title: 'Erro ao Copiar',
+          description: 'Não foi possível carregar os dados da manhã.',
+        });
+      }
+    } else {
+      toast({
+        variant: 'destructive',
+        title: 'Dados não Encontrados',
+        description: 'Preencha e salve os dados da manhã primeiro.',
+      });
+    }
   };
 
 
@@ -467,6 +506,8 @@ const onFormError = (errors: any) => {
 };
 
   async function onSubmit(data: PriceFormValues) {
+    // This is where we ensure the edited names in the form are passed up to the parent component
+    // right before submission, so the parent can persist them correctly.
     const updatedStationData: Station = {
         ...station,
         name: data.stationName,
@@ -512,11 +553,14 @@ const onFormError = (errors: any) => {
         
         Swal.close();
         
+        // Get current data, clear only photos, and reset the form
         const currentData = form.getValues();
         currentData.stationPhoto = undefined;
         currentData.competitors.forEach(c => c.photo = undefined);
-        
         form.reset(currentData);
+        
+        // Also clear photos from localStorage
+        window.localStorage.setItem(storageKey, JSON.stringify(currentData));
         
         Swal.fire({
             icon: 'success',
@@ -598,6 +642,14 @@ const onFormError = (errors: any) => {
 
   return (
     <FormProvider {...form}>
+      {period === 'Tarde' && (
+        <div className="mb-4">
+          <Button type="button" variant="outline" className="w-full" onClick={copyMorningData}>
+            <Copy className="mr-2 h-4 w-4" />
+            Copiar Dados da Manhã
+          </Button>
+        </div>
+      )}
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit, onFormError)} className="space-y-8 mt-4">
           <Card>
