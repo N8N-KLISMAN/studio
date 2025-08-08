@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/card';
 import type { Station } from '@/lib/types';
 import { useState, forwardRef, useRef, useEffect } from 'react';
-import { Camera, Copy, Fuel, Leaf, Pencil } from 'lucide-react';
+import { Camera, Fuel, Leaf, Pencil } from 'lucide-react';
 import { Separator } from './ui/separator';
 import { Checkbox } from './ui/checkbox';
 import Image from 'next/image';
@@ -379,47 +379,6 @@ export function PriceForm({ station, period, managerId, onStationUpdate }: Price
     // No longer calling onStationUpdate here to prevent re-renders on parent
   };
 
-  const copyMorningData = () => {
-    const morningStorageKey = `price-form-${station.id}-manha`;
-    const morningDataString = window.localStorage.getItem(morningStorageKey);
-
-    if (morningDataString) {
-      try {
-        const morningData: PriceFormValues = JSON.parse(morningDataString);
-        
-        // Copy station prices
-        form.setValue('stationPrices', morningData.stationPrices);
-        form.setValue('stationNoChange', morningData.stationNoChange);
-
-        // Copy competitor prices
-        morningData.competitors.forEach((competitor, index) => {
-          form.setValue(`competitors.${index}.prices`, competitor.prices);
-          form.setValue(`competitors.${index}.noChange`, competitor.noChange);
-        });
-
-        toast({
-          title: 'Dados Copiados!',
-          description: 'Os preços da manhã foram copiados para o formulário da tarde.',
-        });
-
-      } catch (e) {
-        console.error("Failed to parse or copy morning data", e);
-        toast({
-          variant: 'destructive',
-          title: 'Erro ao Copiar',
-          description: 'Não foi possível carregar os dados da manhã.',
-        });
-      }
-    } else {
-      toast({
-        variant: 'destructive',
-        title: 'Dados não Encontrados',
-        description: 'Preencha e salve os dados da manhã primeiro.',
-      });
-    }
-  };
-
-
   const formatPayloadForN8n = (data: PriceFormValues) => {
     const now = new Date();
     const day = String(now.getDate()).padStart(2, '0');
@@ -642,14 +601,6 @@ const onFormError = (errors: any) => {
 
   return (
     <FormProvider {...form}>
-      {period === 'Tarde' && (
-        <div className="mb-4">
-          <Button type="button" variant="outline" className="w-full" onClick={copyMorningData}>
-            <Copy className="mr-2 h-4 w-4" />
-            Copiar Dados da Manhã
-          </Button>
-        </div>
-      )}
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit, onFormError)} className="space-y-8 mt-4">
           <Card>
