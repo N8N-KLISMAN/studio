@@ -97,23 +97,9 @@ const createPriceFormSchema = (numberOfCompetitors: number) => z.object({
   stationPrices: allPricesSchema,
   stationNoChange: z.boolean().default(false),
   stationPhoto: photoSchema,
-  competitors: z.array(competitorSchema).transform((competitors, ctx) => {
-    // We only validate the number of competitors the user has selected to see.
-    const visibleCompetitors = competitors.slice(0, numberOfCompetitors);
-    const validatedCompetitors = z.array(competitorSchema).safeParse(visibleCompetitors);
-
-    if (!validatedCompetitors.success) {
-        validatedCompetitors.error.issues.forEach((issue) => {
-            ctx.addIssue({
-                ...issue,
-                path: ['competitors', ...issue.path],
-            });
-        });
-        return z.NEVER;
-    }
-    return competitors; // Return original array to not lose data
-  }),
+  competitors: z.array(competitorSchema),
 }).superRefine((data, ctx) => {
+    // Station validation
     if (!data.stationNoChange) {
         if (!data.stationPhoto?.dataUri) {
             ctx.addIssue({
@@ -141,6 +127,20 @@ const createPriceFormSchema = (numberOfCompetitors: number) => z.object({
                 });
             }
         });
+    }
+
+    // Dynamic competitor validation
+    for (let i = 0; i < numberOfCompetitors; i++) {
+        const competitor = data.competitors[i];
+        const result = competitorSchema.safeParse(competitor);
+        if (!result.success) {
+            result.error.issues.forEach(issue => {
+                ctx.addIssue({
+                    ...issue,
+                    path: ['competitors', i, ...issue.path],
+                });
+            });
+        }
     }
 });
 
