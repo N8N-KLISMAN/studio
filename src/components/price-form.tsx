@@ -562,7 +562,7 @@ const onFormError = (errors: any) => {
         name={`${fieldPrefix}.gasolinaComum`}
         render={({ field }) => (
           <FormItem>
-            <FormLabel className="font-semibold">Gasolina Comum (R$)</FormLabel>
+            <FormLabel>Gasolina Comum (R$)</FormLabel>
             <FormControl>
               <PriceInputWithNoData field={field} disabled={disabled} />
             </FormControl>
