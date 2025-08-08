@@ -30,7 +30,6 @@ import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import Swal from 'sweetalert2';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 
 const REQUIRED_FIELD_MESSAGE = "Preencha Aqui!";
 
@@ -171,24 +170,15 @@ const EditableTitle = ({
     onNameChange: (newName: string) => void
 }) => {
     return (
-      <TooltipProvider>
-        <div className="flex items-center gap-2 text-primary relative group">
+        <div className="flex items-center gap-2 text-primary">
             <Icon className="h-6 w-6" />
             <Input
                 value={name}
                 onChange={(e) => onNameChange(e.target.value)}
                 className="text-2xl font-semibold leading-none tracking-tight border-0 shadow-none focus-visible:ring-0 p-0 h-auto flex-1"
             />
-             <Tooltip>
-                <TooltipTrigger asChild>
-                   <Pencil className="h-5 w-5 text-muted-foreground/50 transition-opacity group-hover:opacity-100 opacity-0" />
-                </TooltipTrigger>
-                <TooltipContent>
-                    <p>Editar</p>
-                </TooltipContent>
-            </Tooltip>
+            <Pencil className="h-5 w-5 text-muted-foreground/50" />
         </div>
-      </TooltipProvider>
     );
 };
 
@@ -390,15 +380,12 @@ export function PriceForm({ station, period, managerId, onStationUpdate }: Price
   const stationNoChange = form.watch('stationNoChange');
 
   const handleStationNameChange = (newName: string) => {
-      form.setValue('stationName', newName);
-      onStationUpdate({ ...station, name: newName });
-  }
+    form.setValue('stationName', newName);
+    onStationUpdate({ ...station, name: newName });
+  };
 
   const handleCompetitorNameChange = (index: number, newName: string) => {
-      form.setValue(`competitors.${index}.name`, newName);
-      const newCompetitors = [...station.competitors];
-      newCompetitors[index].name = newName;
-      onStationUpdate({ ...station, competitors: newCompetitors });
+    form.setValue(`competitors.${index}.name`, newName);
   };
 
 
@@ -448,15 +435,15 @@ export function PriceForm({ station, period, managerId, onStationUpdate }: Price
         });
     }
 
-    data.competitors.forEach((competitor) => {
-        const competitorName = `(${competitor.name})`; // Use edited name
-        payload[`${competitorName} Foto da placa`] = extractBase64(competitor.photo?.dataUri);
-        payload[`${competitorName} Marcou Opção de Alteração de preço`] = competitor.noChange ? 'SIM' : 'NÃO';
+    data.competitors.forEach((competitor, index) => {
+        const competitorName = data.competitors[index].name; // Use edited name
+        payload[`(${competitorName}) Foto da placa`] = extractBase64(competitor.photo?.dataUri);
+        payload[`(${competitorName}) Marcou Opção de Alteração de preço`] = competitor.noChange ? 'SIM' : 'NÃO';
         
         if (!competitor.noChange) {
             paymentMethods.forEach(method => {
                 priceTypes.forEach(type => {
-                    const key = `${competitorName} ${paymentLabels[method]}/${type}`;
+                    const key = `(${competitorName}) ${paymentLabels[method]}/${type}`;
                     const competitorPriceValue = competitor.prices?.[method]?.[type as keyof typeof priceSchema.shape];
 
                      if(competitorPriceValue === 'Sem dados'){
@@ -483,6 +470,16 @@ const onFormError = (errors: any) => {
 };
 
   async function onSubmit(data: PriceFormValues) {
+    const updatedStationData: Station = {
+        ...station,
+        name: data.stationName,
+        competitors: data.competitors.map((c, i) => ({
+            id: station.competitors[i].id,
+            name: c.name
+        }))
+    };
+    onStationUpdate(updatedStationData);
+
     const webhookUrl = process.env.NEXT_PUBLIC_WEBHOOK_URL;
     if (!webhookUrl) {
         console.error("Webhook URL is not defined in .env file.");
@@ -681,7 +678,7 @@ const onFormError = (errors: any) => {
                         render={({ field: formField, fieldState }) => (
                            <PhotoCapture 
                                 field={formField} 
-                                label={`Tirar foto da placa do ${field.name}`} 
+                                label={`Tirar foto da placa do ${form.watch(`competitors.${index}.name`)}`} 
                                 id={`competitors.${index}.photo`}
                                 error={fieldState.error?.message}
                             />
