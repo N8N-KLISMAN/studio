@@ -386,6 +386,9 @@ export function PriceForm({ station, period, managerId, onStationUpdate }: Price
 
   const handleCompetitorNameChange = (index: number, newName: string) => {
     form.setValue(`competitors.${index}.name`, newName);
+    const updatedCompetitors = [...station.competitors];
+    updatedCompetitors[index].name = newName;
+    onStationUpdate({ ...station, competitors: updatedCompetitors });
   };
 
 
@@ -515,9 +518,24 @@ const onFormError = (errors: any) => {
         });
         
         Swal.close();
+        
+        const currentData = form.getValues();
+        currentData.stationPhoto = undefined;
+        currentData.competitors.forEach(c => c.photo = undefined);
+        form.reset(currentData);
 
         if (typeof window !== 'undefined') {
-            window.localStorage.removeItem(storageKey);
+          const savedData = window.localStorage.getItem(storageKey);
+          if (savedData) {
+            try {
+              const parsedData = JSON.parse(savedData);
+              parsedData.stationPhoto = undefined;
+              parsedData.competitors.forEach((c: any) => c.photo = undefined);
+              window.localStorage.setItem(storageKey, JSON.stringify(parsedData));
+            } catch (e) {
+               console.error("Failed to clear photo data from localStorage", e);
+            }
+          }
         }
         
         Swal.fire({
@@ -526,7 +544,6 @@ const onFormError = (errors: any) => {
             text: 'Os dados foram enviados corretamente.',
             confirmButtonColor: 'hsl(var(--primary))'
         }).then(() => {
-             // We don't reset the form to keep names
              router.push(`/success?period=${period}`);
         });
 
