@@ -61,8 +61,11 @@ const competitorSchema = z.object({
       noChange: z.boolean().default(false),
       photo: photoSchema,
     }).superRefine((data, ctx) => {
-      if (!data.noChange) {
-         if(!data.photo?.dataUri) {
+      if (data.noChange || data.prices.vista.etanol === "Sem dados") {
+        return;
+      }
+      
+      if(!data.photo?.dataUri) {
              ctx.addIssue({
                   code: z.ZodIssueCode.custom,
                   path: ['photo'],
@@ -71,14 +74,14 @@ const competitorSchema = z.object({
          }
         const priceTypes = ['etanol', 'gasolinaComum', 'gasolinaAditivada', 'dieselS10'] as const;
         priceTypes.forEach(type => {
-            if (!data.prices.vista[type] || data.prices.vista[type] === '') {
+            if ((!data.prices.vista[type] || data.prices.vista[type] === '') && data.prices.vista[type] !== "Sem dados") {
                 ctx.addIssue({
                     code: z.ZodIssueCode.custom,
                     path: [`prices`, 'vista', type],
                     message: REQUIRED_FIELD_MESSAGE,
                 });
             }
-             if (!data.prices.prazo[type] || data.prices.prazo[type] === '') {
+             if ((!data.prices.prazo[type] || data.prices.prazo[type] === '') && data.prices.prazo[type] !== "Sem dados") {
                 ctx.addIssue({
                     code: z.ZodIssueCode.custom,
                     path: [`prices`, 'prazo', type],
@@ -86,16 +89,30 @@ const competitorSchema = z.object({
                 });
             }
         });
-      }
 });
 
 
-export const priceFormSchema = z.object({
+const createPriceFormSchema = (numberOfCompetitors: number) => z.object({
   stationName: z.string().min(1, { message: "Nome é obrigatório" }),
   stationPrices: allPricesSchema,
   stationNoChange: z.boolean().default(false),
   stationPhoto: photoSchema,
-  competitors: z.array(competitorSchema),
+  competitors: z.array(competitorSchema).transform((competitors, ctx) => {
+    // We only validate the number of competitors the user has selected to see.
+    const visibleCompetitors = competitors.slice(0, numberOfCompetitors);
+    const validatedCompetitors = z.array(competitorSchema).safeParse(visibleCompetitors);
+
+    if (!validatedCompetitors.success) {
+        validatedCompetitors.error.issues.forEach((issue) => {
+            ctx.addIssue({
+                ...issue,
+                path: ['competitors', ...issue.path],
+            });
+        });
+        return z.NEVER;
+    }
+    return competitors; // Return original array to not lose data
+  }),
 }).superRefine((data, ctx) => {
     if (!data.stationNoChange) {
         if (!data.stationPhoto?.dataUri) {
@@ -109,14 +126,14 @@ export const priceFormSchema = z.object({
         const priceTypes = ['etanol', 'gasolinaComum', 'gasolinaAditivada', 'dieselS10'] as const;
 
         priceTypes.forEach(type => {
-            if (!data.stationPrices.vista[type] || data.stationPrices.vista[type] === '') {
+            if ((!data.stationPrices.vista[type] || data.stationPrices.vista[type] === '') && data.stationPrices.vista[type] !== 'Sem dados') {
                 ctx.addIssue({
                     code: z.ZodIssueCode.custom,
                     path: ['stationPrices', 'vista', type],
                     message: REQUIRED_FIELD_MESSAGE,
                 });
             }
-            if (!data.stationPrices.prazo[type] || data.stationPrices.prazo[type] === '') {
+            if ((!data.stationPrices.prazo[type] || data.stationPrices.prazo[type] === '') && data.stationPrices.prazo[type] !== 'Sem dados') {
                 ctx.addIssue({
                     code: z.ZodIssueCode.custom,
                     path: ['stationPrices', 'prazo', type],
@@ -128,7 +145,7 @@ export const priceFormSchema = z.object({
 });
 
 
-export type PriceFormValues = z.infer<typeof priceFormSchema>;
+export type PriceFormValues = z.infer<ReturnType<typeof createPriceFormSchema>>;
 
 interface PriceFormProps {
   station: Station;
@@ -307,6 +324,8 @@ export function PriceForm({ station, period, managerId, onStationUpdate, numberO
   const [isClient, setIsClient] = useState(false);
 
   const storageKey = `price-form-${station.id}-${period.toLowerCase()}`;
+  
+  const priceFormSchema = createPriceFormSchema(numberOfCompetitors);
 
   const form = useForm<PriceFormValues>({
     resolver: zodResolver(priceFormSchema),
@@ -314,7 +333,6 @@ export function PriceForm({ station, period, managerId, onStationUpdate, numberO
       stationName: station.name,
       stationPrices: { vista: {}, prazo: {} },
       stationNoChange: false,
-      stationPhoto: photoSchema,
       competitors: station.competitors.map((c) => ({
         ...c,
         prices: { vista: {}, prazo: {} },
@@ -453,7 +471,7 @@ export function PriceForm({ station, period, managerId, onStationUpdate, numberO
         });
     }
 
-    data.competitors.forEach((competitor, index) => {
+    data.competitors.slice(0, numberOfCompetitors).forEach((competitor, index) => {
         const originalCompetitor = originalStation.competitors[index];
         const competitorPrefix = `(${originalCompetitor.name})`;
 
