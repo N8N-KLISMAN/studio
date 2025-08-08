@@ -19,30 +19,27 @@ export default function DashboardPage() {
     const defaultManagerId = 'default-manager';
     setManagerId(defaultManagerId);
 
-    // This code now runs only on the client, after the initial render.
-    // This prevents the hydration mismatch.
     let savedStationData: Station | null = null;
-    const stationDataString = window.localStorage.getItem('stationData');
-    if (stationDataString) {
-      try {
-        savedStationData = JSON.parse(stationDataString);
-      } catch (e) {
+    try {
+        const stationDataString = window.localStorage.getItem('stationData');
+        if (stationDataString) {
+            savedStationData = JSON.parse(stationDataString);
+        }
+    } catch (e) {
         console.error("Failed to parse station data from localStorage", e);
-      }
     }
-
+    
     // For now, we'll use the first station from the static data as the base.
     // In a real scenario, this could be determined by user login.
     const baseStation = STATIONS[0];
 
-    // If we have saved data, merge it with the base station structure
-    // This ensures that if new competitors are added to data.ts, they appear for the user
     if (savedStationData) {
        const mergedStation = {
          ...baseStation,
-         name: savedStationData.name,
-         competitors: baseStation.competitors.map(comp => {
-            const savedComp = savedStationData?.competitors.find(sc => sc.id === comp.id);
+         id: savedStationData.id || baseStation.id,
+         name: savedStationData.name || baseStation.name,
+         competitors: baseStation.competitors.map((comp, index) => {
+            const savedComp = savedStationData?.competitors?.[index];
             return savedComp ? { ...comp, name: savedComp.name } : comp;
          })
        };
@@ -128,3 +125,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    

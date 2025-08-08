@@ -30,6 +30,7 @@ import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import Swal from 'sweetalert2';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 
 const REQUIRED_FIELD_MESSAGE = "Preencha Aqui!";
 
@@ -170,14 +171,24 @@ const EditableTitle = ({
     onNameChange: (newName: string) => void
 }) => {
     return (
-        <div className="flex items-center gap-2 text-primary">
+      <TooltipProvider>
+        <div className="flex items-center gap-2 text-primary relative group">
             <Icon className="h-6 w-6" />
             <Input
                 value={name}
                 onChange={(e) => onNameChange(e.target.value)}
-                className="text-2xl font-semibold leading-none tracking-tight border-0 shadow-none focus-visible:ring-0 p-0 h-auto"
+                className="text-2xl font-semibold leading-none tracking-tight border-0 shadow-none focus-visible:ring-0 p-0 h-auto flex-1"
             />
+             <Tooltip>
+                <TooltipTrigger asChild>
+                   <Pencil className="h-5 w-5 text-muted-foreground/50 transition-opacity group-hover:opacity-100 opacity-0" />
+                </TooltipTrigger>
+                <TooltipContent>
+                    <p>Editar</p>
+                </TooltipContent>
+            </Tooltip>
         </div>
+      </TooltipProvider>
     );
 };
 
@@ -371,24 +382,29 @@ export function PriceForm({ station, period, managerId, onStationUpdate }: Price
     if (isClient) {
       const subscription = form.watch((value) => {
         window.localStorage.setItem(storageKey, JSON.stringify(value));
+        // Also update the global station data for name changes
+        if (value.stationName && value.stationName !== station.name) {
+          onStationUpdate({ ...station, name: value.stationName });
+        }
+        value.competitors?.forEach((competitor, index) => {
+          if (competitor.name && competitor.name !== station.competitors[index].name) {
+            const newCompetitors = [...station.competitors];
+            newCompetitors[index].name = competitor.name;
+            onStationUpdate({ ...station, competitors: newCompetitors });
+          }
+        });
       });
       return () => subscription.unsubscribe();
     }
-  }, [isClient, storageKey, form]);
+  }, [isClient, storageKey, form, station, onStationUpdate]);
   
   const stationNoChange = form.watch('stationNoChange');
 
   const handleStationNameChange = (newName: string) => {
-      const updatedStation = { ...station, name: newName };
-      onStationUpdate(updatedStation);
       form.setValue('stationName', newName);
   }
 
   const handleCompetitorNameChange = (index: number, newName: string) => {
-      const updatedCompetitors = [...station.competitors];
-      updatedCompetitors[index] = { ...updatedCompetitors[index], name: newName };
-      const updatedStation = { ...station, competitors: updatedCompetitors };
-      onStationUpdate(updatedStation);
       form.setValue(`competitors.${index}.name`, newName);
   };
 
@@ -600,7 +616,7 @@ const onFormError = (errors: any) => {
             <CardHeader>
                 <EditableTitle
                     Icon={Leaf}
-                    name={station.name}
+                    name={form.watch('stationName')}
                     onNameChange={handleStationNameChange}
                 />
             </CardHeader>
@@ -661,7 +677,7 @@ const onFormError = (errors: any) => {
                 <CardHeader>
                     <EditableTitle
                         Icon={Fuel}
-                        name={field.name}
+                        name={form.watch(`competitors.${index}.name`)}
                         onNameChange={(newName) => handleCompetitorNameChange(index, newName)}
                     />
                 </CardHeader>
@@ -721,3 +737,5 @@ const onFormError = (errors: any) => {
     </>
   );
 }
+
+    
