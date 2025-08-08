@@ -2,7 +2,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useFieldArray, useForm, useFormContext, FormProvider } from 'react-hook-form';
+import { useFieldArray, useForm, FormProvider } from 'react-hook-form';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import {
@@ -38,7 +38,7 @@ const photoSchema = z.object({
     dataUri: z.string().min(1, { message: REQUIRED_FIELD_MESSAGE }),
 });
 
-const priceValueSchema = z.string().refine(val => val.trim().length > 0 && val !== 'Sem dados', { message: REQUIRED_FIELD_MESSAGE });
+const priceValueSchema = z.string().refine(val => val.trim().length > 0, { message: REQUIRED_FIELD_MESSAGE });
 
 const priceSchema = z.object({
     etanol: priceValueSchema,
@@ -314,7 +314,53 @@ const PriceInputWithNoData = ({field, disabled}: {field: any, disabled: boolean}
 export function PriceForm({ station, period, managerId, onStationUpdate }: PriceFormProps) {
   const router = useRouter();
   const { toast } = useToast();
-  const form = useFormContext<PriceFormValues>();
+  const [isClient, setIsClient] = useState(false);
+
+  const storageKey = `price-form-${station.id}-${period.toLowerCase()}`;
+
+  const form = useForm<PriceFormValues>({
+    resolver: zodResolver(priceFormSchema),
+    defaultValues: {
+      stationName: station.name,
+      stationPrices: { vista: {}, prazo: {} },
+      stationNoChange: false,
+      competitors: station.competitors.map((c) => ({
+        ...c,
+        prices: { vista: {}, prazo: {} },
+        noChange: false,
+      })),
+    },
+    mode: 'onBlur',
+  });
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  // Effect for loading form data from localStorage
+  useEffect(() => {
+    if (isClient) {
+      const savedData = window.localStorage.getItem(storageKey);
+      if (savedData) {
+        try {
+          const parsedData = JSON.parse(savedData);
+          form.reset(parsedData);
+        } catch (e) {
+          console.error("Failed to parse saved form data", e);
+        }
+      }
+    }
+  }, [isClient, storageKey, form]);
+
+  // Effect for saving form data to localStorage
+  useEffect(() => {
+    if (isClient) {
+      const subscription = form.watch((value) => {
+        window.localStorage.setItem(storageKey, JSON.stringify(value));
+      });
+      return () => subscription.unsubscribe();
+    }
+  }, [isClient, storageKey, form]);
   
   const { fields } = useFieldArray({
     name: 'competitors',
@@ -372,7 +418,7 @@ export function PriceForm({ station, period, managerId, onStationUpdate }: Price
         paymentMethods.forEach(method => {
             priceTypes.forEach(type => {
                 const key = `${stationPrefix} ${paymentLabels[method]}/${type}`;
-                const stationPriceValue = data.stationPrices?.[method]?.[type as keyof z.infer<typeof priceSchema>];
+                const stationPriceValue = data.stationPrices?.[method]?.[type as keyof z.infer<typeof emptyPriceSchema>];
                 
                 if(stationPriceValue === 'Sem dados'){
                      payload[key] = 'Sem dados';
@@ -395,7 +441,7 @@ export function PriceForm({ station, period, managerId, onStationUpdate }: Price
             paymentMethods.forEach(method => {
                 priceTypes.forEach(type => {
                     const key = `${competitorPrefix} ${paymentLabels[method]}/${type}`;
-                    const competitorPriceValue = competitor.prices?.[method]?.[type as keyof z.infer<typeof priceSchema>];
+                    const competitorPriceValue = competitor.prices?.[method]?.[type as keyof z.infer<typeof emptyPriceSchema>];
 
                      if(competitorPriceValue === 'Sem dados'){
                         payload[key] = 'Sem dados';
@@ -551,7 +597,7 @@ const onFormError = (errors: any) => {
   );
 
   return (
-    <>
+    <FormProvider {...form}>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit, onFormError)} className="space-y-8 mt-4">
           <Card>
@@ -676,6 +722,6 @@ const onFormError = (errors: any) => {
           </Button>
         </form>
       </Form>
-    </>
+    </FormProvider>
   );
 }

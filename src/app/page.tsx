@@ -2,13 +2,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useForm, FormProvider } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { STATIONS } from '@/lib/data';
 import type { Station } from '@/lib/types';
-import { PriceForm, priceFormSchema, type PriceFormValues } from '@/components/price-form';
+import { PriceForm } from '@/components/price-form';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Logo } from '@/components/logo';
 
@@ -17,14 +14,6 @@ export default function DashboardPage() {
   const [managerId, setManagerId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isClient, setIsClient] = useState(false);
-
-  const storageKey = station ? `price-form-${station.id}` : null;
-
-  const form = useForm<PriceFormValues>({
-    resolver: zodResolver(priceFormSchema),
-    // Default values will be set inside useEffect
-    mode: 'onBlur',
-  });
 
   useEffect(() => {
     setIsClient(true);
@@ -54,47 +43,8 @@ export default function DashboardPage() {
     } : baseStation;
     
     setStation(resolvedStation);
-
-    // Initialize form with default values after station is set
-    form.reset({
-      stationName: resolvedStation.name,
-      stationPrices: { vista: {}, prazo: {} },
-      stationNoChange: false,
-      competitors: resolvedStation.competitors.map((c) => ({
-        ...c,
-        prices: { vista: {}, prazo: {} },
-        noChange: false,
-      })),
-    });
-    
     setIsLoading(false);
-  }, [form]); // form is stable, only runs once
-  
-  // Effect for loading form data from localStorage
-  useEffect(() => {
-    if (isClient && storageKey) {
-      const savedData = window.localStorage.getItem(storageKey);
-      if (savedData) {
-        try {
-          const parsedData = JSON.parse(savedData);
-          form.reset(parsedData);
-        } catch (e) {
-          console.error("Failed to parse saved form data", e);
-        }
-      }
-    }
-  }, [isClient, storageKey, form]);
-
-  // Effect for saving form data to localStorage
-   useEffect(() => {
-    if (isClient && storageKey) {
-      const subscription = form.watch((value) => {
-        window.localStorage.setItem(storageKey, JSON.stringify(value));
-      });
-      return () => subscription.unsubscribe();
-    }
-  }, [isClient, storageKey, form]);
-
+  }, []);
 
   const handleStationUpdate = (updatedStation: Station) => {
     setStation(updatedStation);
@@ -102,7 +52,6 @@ export default function DashboardPage() {
         window.localStorage.setItem('stationData', JSON.stringify(updatedStation));
      }
   };
-
 
   if (isLoading || !station || !managerId) {
     return (
@@ -127,51 +76,48 @@ export default function DashboardPage() {
   }
 
   return (
-    <FormProvider {...form}>
-        <div className="min-h-screen bg-background">
-        <header className="bg-card shadow-sm border-b border-border">
-            <div className="container mx-auto flex h-16 items-center justify-between p-4">
-            <Logo />
-            </div>
-        </header>
-
-        <main className="container mx-auto p-4 md:p-8">
-            <div className="mb-8 text-center">
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">
-                Registro de Preços Diário
-            </h1>
-            <p className="text-lg text-muted-foreground">
-                Selecione o período e preencha as informações abaixo.
-            </p>
-            </div>
-
-            <Tabs defaultValue="manha" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 md:w-[400px] mx-auto">
-                <TabsTrigger value="manha">Manhã</TabsTrigger>
-                <TabsTrigger value="tarde">Tarde</TabsTrigger>
-            </TabsList>
-            <TabsContent value="manha">
-                <PriceForm 
-                station={station} 
-                period="Manhã" 
-                managerId={managerId} 
-                onStationUpdate={handleStationUpdate}
-                key={`form-manha-${station.id}`}
-                />
-            </TabsContent>
-            <TabsContent value="tarde">
-                <PriceForm 
-                station={station} 
-                period="Tarde" 
-                managerId={managerId}
-                onStationUpdate={handleStationUpdate}
-                key={`form-tarde-${station.id}`}
-                />
-            </TabsContent>
-            </Tabs>
-        </main>
+    <div className="min-h-screen bg-background">
+      <header className="bg-card shadow-sm border-b border-border">
+        <div className="container mx-auto flex h-16 items-center justify-between p-4">
+          <Logo />
         </div>
-    </FormProvider>
+      </header>
+
+      <main className="container mx-auto p-4 md:p-8">
+        <div className="mb-8 text-center">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
+            Registro de Preços Diário
+          </h1>
+          <p className="text-lg text-muted-foreground">
+            Selecione o período e preencha as informações abaixo.
+          </p>
+        </div>
+
+        <Tabs defaultValue="manha" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 md:w-[400px] mx-auto">
+            <TabsTrigger value="manha">Manhã</TabsTrigger>
+            <TabsTrigger value="tarde">Tarde</TabsTrigger>
+          </TabsList>
+          <TabsContent value="manha">
+            <PriceForm 
+              station={station} 
+              period="Manhã" 
+              managerId={managerId} 
+              onStationUpdate={handleStationUpdate}
+              key={`form-manha-${station.id}`}
+            />
+          </TabsContent>
+          <TabsContent value="tarde">
+            <PriceForm 
+              station={station} 
+              period="Tarde" 
+              managerId={managerId}
+              onStationUpdate={handleStationUpdate}
+              key={`form-tarde-${station.id}`}
+            />
+          </TabsContent>
+        </Tabs>
+      </main>
+    </div>
   );
 }
-    
