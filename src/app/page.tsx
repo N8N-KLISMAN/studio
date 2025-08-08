@@ -8,12 +8,16 @@ import type { Station } from '@/lib/types';
 import { PriceForm } from '@/components/price-form';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Logo } from '@/components/logo';
+import { SettingsMenu } from '@/components/settings-menu';
+import type { Competitor } from '@/lib/types';
+
 
 export default function DashboardPage() {
   const [station, setStation] = useState<Station | null>(null);
   const [managerId, setManagerId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isClient, setIsClient] = useState(false);
+  const [numberOfCompetitors, setNumberOfCompetitors] = useState(10);
 
   useEffect(() => {
     setIsClient(true);
@@ -21,13 +25,23 @@ export default function DashboardPage() {
     setManagerId(defaultManagerId);
 
     let savedStationData: Station | null = null;
+    let savedCompetitorCount: number | null = null;
+
     try {
       const stationDataString = window.localStorage.getItem('stationData');
       if (stationDataString) {
         savedStationData = JSON.parse(stationDataString);
       }
+      const competitorCountString = window.localStorage.getItem('competitorCount');
+      if (competitorCountString) {
+          savedCompetitorCount = parseInt(competitorCountString, 10);
+      }
     } catch (e) {
-      console.error("Failed to parse station data from localStorage", e);
+      console.error("Failed to parse data from localStorage", e);
+    }
+    
+    if (savedCompetitorCount !== null && !isNaN(savedCompetitorCount)) {
+        setNumberOfCompetitors(savedCompetitorCount);
     }
 
     const baseStation = STATIONS[0];
@@ -45,6 +59,13 @@ export default function DashboardPage() {
     setStation(resolvedStation);
     setIsLoading(false);
   }, []);
+  
+  const handleCompetitorCountChange = (count: number) => {
+    setNumberOfCompetitors(count);
+     if (isClient) {
+        window.localStorage.setItem('competitorCount', String(count));
+     }
+  };
 
   const handleStationUpdate = (updatedStation: Station) => {
     setStation(updatedStation);
@@ -52,6 +73,10 @@ export default function DashboardPage() {
         window.localStorage.setItem('stationData', JSON.stringify(updatedStation));
      }
   };
+  
+  const getVisibleCompetitors = (competitors: Competitor[]): Competitor[] => {
+      return competitors.slice(0, numberOfCompetitors);
+  }
 
   if (isLoading || !station || !managerId) {
     return (
@@ -59,6 +84,7 @@ export default function DashboardPage() {
         <header className="bg-card shadow-sm border-b border-border">
           <div className="container mx-auto flex h-16 items-center justify-between p-4">
             <Logo />
+             <Skeleton className="h-10 w-10" />
           </div>
         </header>
         <main className="container mx-auto p-4 md:p-8">
@@ -74,12 +100,22 @@ export default function DashboardPage() {
       </div>
     );
   }
+  
+  const stationForForm = {
+      ...station,
+      competitors: getVisibleCompetitors(station.competitors),
+  };
+
 
   return (
     <div className="min-h-screen bg-background">
       <header className="bg-card shadow-sm border-b border-border">
         <div className="container mx-auto flex h-16 items-center justify-between p-4">
           <Logo />
+          <SettingsMenu
+            competitorCount={numberOfCompetitors}
+            onCompetitorCountChange={handleCompetitorCountChange}
+          />
         </div>
       </header>
 
@@ -100,20 +136,20 @@ export default function DashboardPage() {
           </TabsList>
           <TabsContent value="manha">
             <PriceForm 
-              station={station} 
+              station={stationForForm} 
               period="Manhã" 
               managerId={managerId} 
               onStationUpdate={handleStationUpdate}
-              key={`form-manha-${station.id}`}
+              key={`form-manha-${station.id}-${numberOfCompetitors}`}
             />
           </TabsContent>
           <TabsContent value="tarde">
             <PriceForm 
-              station={station} 
+              station={stationForForm} 
               period="Tarde" 
               managerId={managerId}
               onStationUpdate={handleStationUpdate}
-              key={`form-tarde-${station.id}`}
+              key={`form-tarde-${station.id}-${numberOfCompetitors}`}
             />
           </TabsContent>
         </Tabs>
