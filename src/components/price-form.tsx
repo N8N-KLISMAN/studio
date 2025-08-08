@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/card';
 import type { Station } from '@/lib/types';
 import { useState, forwardRef, useRef, useEffect } from 'react';
-import { Camera, Fuel, Leaf, Pencil } from 'lucide-react';
+import { Camera, Fuel, Leaf, Pencil, RotateCcw } from 'lucide-react';
 import { Separator } from './ui/separator';
 import { Checkbox } from './ui/checkbox';
 import Image from 'next/image';
@@ -38,7 +38,7 @@ const photoSchema = z.object({
     dataUri: z.string().min(1, { message: REQUIRED_FIELD_MESSAGE }),
 }).optional();
 
-const priceValueSchema = z.string().refine(val => val.trim().length > 0, { message: REQUIRED_FIELD_MESSAGE });
+const priceValueSchema = z.string().optional();
 
 const priceSchema = z.object({
     etanol: priceValueSchema,
@@ -47,44 +47,56 @@ const priceSchema = z.object({
     dieselS10: priceValueSchema,
 });
 
-const emptyPriceSchema = z.object({
-    etanol: z.string().optional(),
-    gasolinaComum: z.string().optional(),
-    gasolinaAditivada: z.string().optional(),
-    dieselS10: z.string().optional(),
-})
 
-const emptyAllPricesSchema = z.object({
-  vista: emptyPriceSchema,
-  prazo: emptyPriceSchema,
+const allPricesSchema = z.object({
+  vista: priceSchema,
+  prazo: priceSchema,
 });
 
 
 const competitorSchema = z.object({
       id: z.string(),
       name: z.string().min(1, { message: "Nome é obrigatório" }),
-      prices: emptyAllPricesSchema, // Initially optional
+      prices: allPricesSchema,
       noChange: z.boolean().default(false),
       photo: photoSchema,
     }).superRefine((data, ctx) => {
-      if (!data.noChange && !data.photo?.dataUri) {
-         ctx.addIssue({
-              code: z.ZodIssueCode.custom,
-              path: ['photo'],
-              message: REQUIRED_FIELD_MESSAGE,
-          });
+      if (!data.noChange) {
+         if(!data.photo?.dataUri) {
+             ctx.addIssue({
+                  code: z.ZodIssueCode.custom,
+                  path: ['photo'],
+                  message: REQUIRED_FIELD_MESSAGE,
+              });
+         }
+        const priceTypes = ['etanol', 'gasolinaComum', 'gasolinaAditivada', 'dieselS10'] as const;
+        priceTypes.forEach(type => {
+            if (!data.prices.vista[type] || data.prices.vista[type] === '') {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    path: [`prices`, 'vista', type],
+                    message: REQUIRED_FIELD_MESSAGE,
+                });
+            }
+             if (!data.prices.prazo[type] || data.prices.prazo[type] === '') {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    path: [`prices`, 'prazo', type],
+                    message: REQUIRED_FIELD_MESSAGE,
+                });
+            }
+        });
       }
 });
 
 
 export const priceFormSchema = z.object({
   stationName: z.string().min(1, { message: "Nome é obrigatório" }),
-  stationPrices: emptyAllPricesSchema, // Initially optional
+  stationPrices: allPricesSchema,
   stationNoChange: z.boolean().default(false),
   stationPhoto: photoSchema,
   competitors: z.array(competitorSchema),
 }).superRefine((data, ctx) => {
-    // Station validation
     if (!data.stationNoChange) {
         if (!data.stationPhoto?.dataUri) {
             ctx.addIssue({
@@ -97,14 +109,14 @@ export const priceFormSchema = z.object({
         const priceTypes = ['etanol', 'gasolinaComum', 'gasolinaAditivada', 'dieselS10'] as const;
 
         priceTypes.forEach(type => {
-            if ((!data.stationPrices.vista[type] || data.stationPrices.vista[type] === '') && data.stationPrices.vista[type] !== 'Sem dados') {
+            if (!data.stationPrices.vista[type] || data.stationPrices.vista[type] === '') {
                 ctx.addIssue({
                     code: z.ZodIssueCode.custom,
                     path: ['stationPrices', 'vista', type],
                     message: REQUIRED_FIELD_MESSAGE,
                 });
             }
-            if ((!data.stationPrices.prazo[type] || data.stationPrices.prazo[type] === '') && data.stationPrices.prazo[type] !== 'Sem dados') {
+            if (!data.stationPrices.prazo[type] || data.stationPrices.prazo[type] === '') {
                 ctx.addIssue({
                     code: z.ZodIssueCode.custom,
                     path: ['stationPrices', 'prazo', type],
@@ -113,29 +125,6 @@ export const priceFormSchema = z.object({
             }
         });
     }
-
-    // Competitors validation
-    data.competitors.forEach((competitor, index) => {
-        if (!competitor.noChange) {
-            const priceTypes = ['etanol', 'gasolinaComum', 'gasolinaAditivada', 'dieselS10'] as const;
-            priceTypes.forEach(type => {
-                if ((!competitor.prices.vista[type] || competitor.prices.vista[type] === '') && competitor.prices.vista[type] !== 'Sem dados') {
-                    ctx.addIssue({
-                        code: z.ZodIssueCode.custom,
-                        path: [`competitors`, index, 'prices', 'vista', type],
-                        message: REQUIRED_FIELD_MESSAGE,
-                    });
-                }
-                if ((!competitor.prices.prazo[type] || competitor.prices.prazo[type] === '') && competitor.prices.prazo[type] !== 'Sem dados') {
-                    ctx.addIssue({
-                        code: z.ZodIssueCode.custom,
-                        path: [`competitors`, index, 'prices', 'prazo', type],
-                        message: REQUIRED_FIELD_MESSAGE,
-                    });
-                }
-            });
-        }
-    });
 });
 
 
@@ -324,6 +313,7 @@ export function PriceForm({ station, period, managerId, onStationUpdate }: Price
       stationName: station.name,
       stationPrices: { vista: {}, prazo: {} },
       stationNoChange: false,
+      stationPhoto: photoSchema,
       competitors: station.competitors.map((c) => ({
         ...c,
         prices: { vista: {}, prazo: {} },
@@ -379,6 +369,41 @@ export function PriceForm({ station, period, managerId, onStationUpdate }: Price
     // No longer calling onStationUpdate here to prevent re-renders on parent
   };
 
+  const handleClearForm = () => {
+    Swal.fire({
+      title: 'Você tem certeza?',
+      text: "Isso limpará todos os preços, fotos e seleções. Os nomes dos postos não serão alterados.",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: 'hsl(var(--primary))',
+      cancelButtonColor: 'hsl(var(--destructive))',
+      confirmButtonText: 'Sim, limpar dados!',
+      cancelButtonText: 'Cancelar'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        const currentData = form.getValues();
+        const clearedData = {
+          ...currentData,
+          stationPrices: { vista: {}, prazo: {} },
+          stationNoChange: false,
+          stationPhoto: undefined,
+          competitors: currentData.competitors.map(c => ({
+            ...c,
+            prices: { vista: {}, prazo: {} },
+            noChange: false,
+            photo: undefined,
+          }))
+        };
+        form.reset(clearedData);
+        window.localStorage.setItem(storageKey, JSON.stringify(clearedData));
+        toast({
+          title: "Formulário Limpo",
+          description: "Os campos de preços e imagens foram redefinidos.",
+        })
+      }
+    });
+  };
+
   const formatPayloadForN8n = (data: PriceFormValues) => {
     const now = new Date();
     const day = String(now.getDate()).padStart(2, '0');
@@ -416,7 +441,7 @@ export function PriceForm({ station, period, managerId, onStationUpdate }: Price
         paymentMethods.forEach(method => {
             priceTypes.forEach(type => {
                 const key = `${stationPrefix} ${paymentLabels[method]}/${type}`;
-                const stationPriceValue = data.stationPrices?.[method]?.[type as keyof z.infer<typeof emptyPriceSchema>];
+                const stationPriceValue = data.stationPrices?.[method]?.[type as keyof z.infer<typeof priceSchema>];
                 
                 if(stationPriceValue === 'Sem dados'){
                      payload[key] = 'Sem dados';
@@ -439,7 +464,7 @@ export function PriceForm({ station, period, managerId, onStationUpdate }: Price
             paymentMethods.forEach(method => {
                 priceTypes.forEach(type => {
                     const key = `${competitorPrefix} ${paymentLabels[method]}/${type}`;
-                    const competitorPriceValue = competitor.prices?.[method]?.[type as keyof z.infer<typeof emptyPriceSchema>];
+                    const competitorPriceValue = competitor.prices?.[method]?.[type as keyof z.infer<typeof priceSchema>];
 
                      if(competitorPriceValue === 'Sem dados'){
                         payload[key] = 'Sem dados';
@@ -719,12 +744,19 @@ const onFormError = (errors: any) => {
               </Card>
             )})}
           </div>
-
-          <Button type="submit" className="w-full text-lg">
-            {`Enviar Dados (${period})`}
-          </Button>
+          
+          <div className="flex flex-col md:flex-row gap-4">
+            <Button type="button" variant="outline" className="w-full" onClick={handleClearForm}>
+                <RotateCcw className="mr-2 h-4 w-4" />
+                Limpar Dados
+            </Button>
+            <Button type="submit" className="w-full text-lg">
+                {`Enviar Dados (${period})`}
+            </Button>
+          </div>
         </form>
       </Form>
     </FormProvider>
   );
 }
+
