@@ -17,7 +17,7 @@ export default function DashboardPage() {
   const [managerId, setManagerId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isClient, setIsClient] = useState(false);
-  const [numberOfCompetitors, setNumberOfCompetitors] = useState(10);
+  const [numberOfCompetitors, setNumberOfCompetitors] = useState(1);
 
   useEffect(() => {
     setIsClient(true);
@@ -47,7 +47,7 @@ export default function DashboardPage() {
       if (savedCompetitorCount !== null && !isNaN(savedCompetitorCount)) {
           setNumberOfCompetitors(savedCompetitorCount);
       } else {
-          setNumberOfCompetitors(10); // Default value
+          setNumberOfCompetitors(1); // Default value
       }
 
 
