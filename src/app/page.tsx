@@ -18,7 +18,9 @@ export default function DashboardPage() {
     // Since there's no login, we'll use a default manager
     const defaultManagerId = 'default-manager';
     setManagerId(defaultManagerId);
-    
+
+    // This code now runs only on the client, after the initial render.
+    // This prevents the hydration mismatch.
     let savedStationData: Station | null = null;
     const stationDataString = window.localStorage.getItem('stationData');
     if (stationDataString) {
