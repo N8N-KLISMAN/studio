@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/card';
 import type { Station } from '@/lib/types';
 import { useState, forwardRef, useRef, useEffect } from 'react';
-import { Camera, Fuel, Leaf, Loader2, X } from 'lucide-react';
+import { Camera, Fuel, Leaf, Pencil } from 'lucide-react';
 import { Separator } from './ui/separator';
 import { Checkbox } from './ui/checkbox';
 import Image from 'next/image';
@@ -66,7 +66,7 @@ const emptyAllPricesSchema = z.object({
 
 const competitorSchema = z.object({
       id: z.string(),
-      name: z.string(),
+      name: z.string().min(1, { message: "Nome é obrigatório" }),
       prices: emptyAllPricesSchema, // Initially optional
       noChange: z.boolean().default(false),
       photo: photoSchema.optional(),
@@ -82,6 +82,7 @@ const competitorSchema = z.object({
 
 
 const priceFormSchema = z.object({
+  stationName: z.string().min(1, { message: "Nome é obrigatório" }),
   stationPrices: emptyAllPricesSchema, // Initially optional
   stationNoChange: z.boolean().default(false),
   stationPhoto: photoSchema.optional(),
@@ -156,7 +157,30 @@ interface PriceFormProps {
   station: Station;
   period: 'Manhã' | 'Tarde';
   managerId: string;
+  onStationUpdate: (station: Station) => void;
 }
+
+const EditableTitle = ({
+    Icon,
+    name,
+    onNameChange,
+}: {
+    Icon: React.ElementType,
+    name: string,
+    onNameChange: (newName: string) => void
+}) => {
+    return (
+        <div className="flex items-center gap-2 text-primary">
+            <Icon className="h-6 w-6" />
+            <Input
+                value={name}
+                onChange={(e) => onNameChange(e.target.value)}
+                className="text-2xl font-semibold leading-none tracking-tight border-0 shadow-none focus-visible:ring-0 p-0 h-auto"
+            />
+        </div>
+    );
+};
+
 
 const PhotoCapture = ({ field, label, id, error }: { field: any, label: string, id: string, error?: string }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -196,7 +220,7 @@ const PhotoCapture = ({ field, label, id, error }: { field: any, label: string, 
                             className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
                             onClick={handleRemoveImage}
                         >
-                            <X className="h-4 w-4" />
+                            <Pencil className="h-4 w-4" />
                         </Button>
                     </div>
                 </div>
@@ -298,33 +322,35 @@ const PriceInputWithNoData = ({field, disabled}: {field: any, disabled: boolean}
 }
 
 
-export function PriceForm({ station, period, managerId }: PriceFormProps) {
+export function PriceForm({ station, period, managerId, onStationUpdate }: PriceFormProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
   const storageKey = `price-form-${station.id}-${period}`;
 
+  const form = useForm<PriceFormValues>({
+    resolver: zodResolver(priceFormSchema),
+    defaultValues: {
+      stationName: station.name,
+      stationPrices: { vista: {}, prazo: {} },
+      stationNoChange: false,
+      competitors: station.competitors.map((c) => ({
+        ...c,
+        prices: { vista: {}, prazo: {} },
+        noChange: false,
+      })),
+    },
+    mode: 'onBlur',
+  });
+
+  const { fields } = useFieldArray({
+    name: 'competitors',
+    control: form.control,
+  });
+
   useEffect(() => {
     setIsClient(true);
   }, []);
-
-  const defaultValues = {
-    stationPrices: { vista: {}, prazo: {} },
-    stationNoChange: false,
-    competitors: station.competitors.map((c) => ({
-      ...c,
-      prices: { vista: {}, prazo: {} },
-      noChange: false,
-    })),
-  };
-
-  const form = useForm<z.infer<typeof priceFormSchema>>({
-    resolver: zodResolver(priceFormSchema),
-    defaultValues,
-    mode: 'onBlur'
-  });
-
-  const watchedValues = form.watch();
 
   useEffect(() => {
     if (isClient) {
@@ -338,8 +364,7 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
         }
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isClient, storageKey, form.reset]);
+  }, [isClient, storageKey, form]);
 
 
   useEffect(() => {
@@ -350,14 +375,23 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
       return () => subscription.unsubscribe();
     }
   }, [isClient, storageKey, form]);
-
-
-  const { fields } = useFieldArray({
-    name: 'competitors',
-    control: form.control,
-  });
-
+  
   const stationNoChange = form.watch('stationNoChange');
+
+  const handleStationNameChange = (newName: string) => {
+      const updatedStation = { ...station, name: newName };
+      onStationUpdate(updatedStation);
+      form.setValue('stationName', newName);
+  }
+
+  const handleCompetitorNameChange = (index: number, newName: string) => {
+      const updatedCompetitors = [...station.competitors];
+      updatedCompetitors[index] = { ...updatedCompetitors[index], name: newName };
+      const updatedStation = { ...station, competitors: updatedCompetitors };
+      onStationUpdate(updatedStation);
+      form.setValue(`competitors.${index}.name`, newName);
+  };
+
 
   const formatPayloadForN8n = (data: PriceFormValues) => {
     const now = new Date();
@@ -380,11 +414,11 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
     
     payload["Data e Hora do Envio"] = dateTimeFormatted;
     payload["Periodo Marcado"] = period;
-    payload["Nome do Posto"] = station.name;
+    payload["Nome do Posto"] = data.stationName; // Use edited name
 
 
-    payload[`(${station.name}) Foto da minha placa`] = extractBase64(data.stationPhoto?.dataUri);
-    payload[`(${station.name}) Marcou Opção de Alteração de preço`] = data.stationNoChange ? 'SIM' : 'NÃO';
+    payload[`(${data.stationName}) Foto da minha placa`] = extractBase64(data.stationPhoto?.dataUri);
+    payload[`(${data.stationName}) Marcou Opção de Alteração de preço`] = data.stationNoChange ? 'SIM' : 'NÃO';
 
     const priceTypes = ['etanol', 'gasolinaComum', 'gasolinaAditivada', 'dieselS10'];
     const paymentMethods: Array<keyof PriceFormValues['stationPrices']> = ['vista', 'prazo'];
@@ -393,7 +427,7 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
     if (!data.stationNoChange) {
         paymentMethods.forEach(method => {
             priceTypes.forEach(type => {
-                const key = `(${station.name}) ${paymentLabels[method]}/${type}`;
+                const key = `(${data.stationName}) ${paymentLabels[method]}/${type}`;
                 const stationPriceValue = data.stationPrices?.[method]?.[type as keyof typeof priceSchema.shape];
                 
                 if(stationPriceValue === 'Sem dados'){
@@ -406,7 +440,7 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
     }
 
     data.competitors.forEach((competitor) => {
-        const competitorName = `(${competitor.name})`;
+        const competitorName = `(${competitor.name})`; // Use edited name
         payload[`${competitorName} Foto da placa`] = extractBase64(competitor.photo?.dataUri);
         payload[`${competitorName} Marcou Opção de Alteração de preço`] = competitor.noChange ? 'SIM' : 'NÃO';
         
@@ -485,7 +519,7 @@ const onFormError = (errors: any) => {
             text: 'Os dados foram enviados corretamente.',
             confirmButtonColor: 'hsl(var(--primary))'
         }).then(() => {
-             form.reset(defaultValues);
+             // We don't reset the form to keep names
              router.push(`/success?period=${period}`);
         });
 
@@ -564,10 +598,11 @@ const onFormError = (errors: any) => {
         <form onSubmit={form.handleSubmit(onSubmit, onFormError)} className="space-y-8 mt-4">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-primary">
-                <Leaf className="h-6 w-6"/>
-                {station.name}
-              </CardTitle>
+                <EditableTitle
+                    Icon={Leaf}
+                    name={station.name}
+                    onNameChange={handleStationNameChange}
+                />
             </CardHeader>
             <CardContent className="space-y-6">
                 <FormField
@@ -624,10 +659,11 @@ const onFormError = (errors: any) => {
               return (
               <Card key={field.id}>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-gray-600">
-                    <Fuel className="h-6 w-6" />
-                    {field.name}
-                  </CardTitle>
+                    <EditableTitle
+                        Icon={Fuel}
+                        name={field.name}
+                        onNameChange={(newName) => handleCompetitorNameChange(index, newName)}
+                    />
                 </CardHeader>
                 <CardContent className="space-y-6">
                     <FormField
@@ -685,5 +721,3 @@ const onFormError = (errors: any) => {
     </>
   );
 }
-
-    

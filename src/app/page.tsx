@@ -2,13 +2,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { STATIONS } from '@/lib/data';
 import type { Station } from '@/lib/types';
 import { PriceForm } from '@/components/price-form';
 import { Skeleton } from '@/components/ui/skeleton';
-import { LogOut } from 'lucide-react';
 import { Logo } from '@/components/logo';
 
 export default function DashboardPage() {
@@ -17,17 +15,48 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Since there's no login, we'll use a default manager and the first station
+    // Since there's no login, we'll use a default manager
     const defaultManagerId = 'default-manager';
-    const defaultStation = STATIONS[0];
-
-    if (defaultStation) {
-      setStation(defaultStation);
-      setManagerId(defaultManagerId);
-    } 
+    setManagerId(defaultManagerId);
     
+    let savedStationData: Station | null = null;
+    const stationDataString = window.localStorage.getItem('stationData');
+    if (stationDataString) {
+      try {
+        savedStationData = JSON.parse(stationDataString);
+      } catch (e) {
+        console.error("Failed to parse station data from localStorage", e);
+      }
+    }
+
+    // For now, we'll use the first station from the static data as the base.
+    // In a real scenario, this could be determined by user login.
+    const baseStation = STATIONS[0];
+
+    // If we have saved data, merge it with the base station structure
+    // This ensures that if new competitors are added to data.ts, they appear for the user
+    if (savedStationData) {
+       const mergedStation = {
+         ...baseStation,
+         name: savedStationData.name,
+         competitors: baseStation.competitors.map(comp => {
+            const savedComp = savedStationData?.competitors.find(sc => sc.id === comp.id);
+            return savedComp ? { ...comp, name: savedComp.name } : comp;
+         })
+       };
+       setStation(mergedStation);
+    } else {
+        setStation(baseStation);
+    }
+
     setIsLoading(false);
   }, []);
+
+  const handleStationUpdate = (updatedStation: Station) => {
+    setStation(updatedStation);
+    window.localStorage.setItem('stationData', JSON.stringify(updatedStation));
+  };
+
 
   if (isLoading || !station || !managerId) {
     return (
@@ -75,10 +104,22 @@ export default function DashboardPage() {
             <TabsTrigger value="tarde">Tarde</TabsTrigger>
           </TabsList>
           <TabsContent value="manha">
-            <PriceForm station={station} period="Manhã" managerId={managerId} />
+            <PriceForm 
+              station={station} 
+              period="Manhã" 
+              managerId={managerId} 
+              onStationUpdate={handleStationUpdate}
+              key={`form-manha-${station.id}`}
+             />
           </TabsContent>
           <TabsContent value="tarde">
-            <PriceForm station={station} period="Tarde" managerId={managerId} />
+            <PriceForm 
+              station={station} 
+              period="Tarde" 
+              managerId={managerId}
+              onStationUpdate={handleStationUpdate}
+              key={`form-tarde-${station.id}`}
+            />
           </TabsContent>
         </Tabs>
       </main>
