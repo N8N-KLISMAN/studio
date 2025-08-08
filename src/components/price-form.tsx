@@ -410,7 +410,7 @@ export function PriceForm({ station, period, managerId, onStationUpdate }: Price
     
     payload["Data e Hora do Envio"] = dateTimeFormatted;
     payload["Periodo Marcado"] = period;
-    payload["Nome do Posto"] = data.stationName; // Use edited name
+    payload["Nome do Posto"] = data.stationName;
 
 
     payload[`(${data.stationName}) Foto da minha placa`] = extractBase64(data.stationPhoto?.dataUri);
@@ -436,7 +436,8 @@ export function PriceForm({ station, period, managerId, onStationUpdate }: Price
     }
 
     data.competitors.forEach((competitor, index) => {
-        const competitorName = data.competitors[index].name; // Use edited name
+        const competitorName = data.competitors[index].name;
+        payload[`Nome do Concorrente ${index + 1}`] = competitorName;
         payload[`(${competitorName}) Foto da placa`] = extractBase64(competitor.photo?.dataUri);
         payload[`(${competitorName}) Marcou Opção de Alteração de preço`] = competitor.noChange ? 'SIM' : 'NÃO';
         
