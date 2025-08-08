@@ -5,9 +5,11 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogClose,
 } from '@/components/ui/dialog';
 import {
   Select,
@@ -19,6 +21,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Settings } from 'lucide-react';
+import { useState } from 'react';
 
 interface SettingsMenuProps {
   competitorCount: number;
@@ -26,8 +29,10 @@ interface SettingsMenuProps {
 }
 
 export function SettingsMenu({ competitorCount, onCompetitorCountChange }: SettingsMenuProps) {
-  const handleSelectChange = (value: string) => {
-    onCompetitorCountChange(Number(value));
+  const [selectedCount, setSelectedCount] = useState(competitorCount);
+
+  const handleConfirm = () => {
+    onCompetitorCountChange(selectedCount);
   };
 
   return (
@@ -42,7 +47,7 @@ export function SettingsMenu({ competitorCount, onCompetitorCountChange }: Setti
         <DialogHeader>
           <DialogTitle>Configurações</DialogTitle>
           <DialogDescription>
-            Ajuste as configurações do formulário de acordo com sua necessidade.
+            Ajuste essa configuração de acordo com a quantidade de Concorrentes que irá enviar dados.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
@@ -51,8 +56,8 @@ export function SettingsMenu({ competitorCount, onCompetitorCountChange }: Setti
               Concorrentes
             </Label>
             <Select
-              value={String(competitorCount)}
-              onValueChange={handleSelectChange}
+              value={String(selectedCount)}
+              onValueChange={(value) => setSelectedCount(Number(value))}
             >
               <SelectTrigger id="competitor-count" className="col-span-3">
                 <SelectValue placeholder="Selecione o número de concorrentes" />
@@ -67,6 +72,13 @@ export function SettingsMenu({ competitorCount, onCompetitorCountChange }: Setti
             </Select>
           </div>
         </div>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button type="button" onClick={handleConfirm}>
+              Confirmar
+            </Button>
+          </DialogClose>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
