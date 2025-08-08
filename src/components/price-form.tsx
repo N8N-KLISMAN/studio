@@ -60,36 +60,7 @@ const competitorSchema = z.object({
       prices: allPricesSchema,
       noChange: z.boolean().default(false),
       photo: photoSchema,
-    }).superRefine((data, ctx) => {
-      if (data.noChange || data.prices.vista.etanol === "Sem dados") {
-        return;
-      }
-      
-      if(!data.photo?.dataUri) {
-             ctx.addIssue({
-                  code: z.ZodIssueCode.custom,
-                  path: ['photo'],
-                  message: REQUIRED_FIELD_MESSAGE,
-              });
-         }
-        const priceTypes = ['etanol', 'gasolinaComum', 'gasolinaAditivada', 'dieselS10'] as const;
-        priceTypes.forEach(type => {
-            if ((!data.prices.vista[type] || data.prices.vista[type] === '') && data.prices.vista[type] !== "Sem dados") {
-                ctx.addIssue({
-                    code: z.ZodIssueCode.custom,
-                    path: [`prices`, 'vista', type],
-                    message: REQUIRED_FIELD_MESSAGE,
-                });
-            }
-             if ((!data.prices.prazo[type] || data.prices.prazo[type] === '') && data.prices.prazo[type] !== "Sem dados") {
-                ctx.addIssue({
-                    code: z.ZodIssueCode.custom,
-                    path: [`prices`, 'prazo', type],
-                    message: REQUIRED_FIELD_MESSAGE,
-                });
-            }
-        });
-});
+    });
 
 
 const createPriceFormSchema = (numberOfCompetitors: number) => z.object({
@@ -99,7 +70,7 @@ const createPriceFormSchema = (numberOfCompetitors: number) => z.object({
   stationPhoto: photoSchema,
   competitors: z.array(competitorSchema),
 }).superRefine((data, ctx) => {
-    // Station validation
+    // Validação do Posto
     if (!data.stationNoChange) {
         if (!data.stationPhoto?.dataUri) {
             ctx.addIssue({
@@ -129,18 +100,39 @@ const createPriceFormSchema = (numberOfCompetitors: number) => z.object({
         });
     }
 
-    // Dynamic competitor validation
+    // Validação dinâmica dos concorrentes visíveis
     for (let i = 0; i < numberOfCompetitors; i++) {
         const competitor = data.competitors[i];
-        const result = competitorSchema.safeParse(competitor);
-        if (!result.success) {
-            result.error.issues.forEach(issue => {
-                ctx.addIssue({
-                    ...issue,
-                    path: ['competitors', i, ...issue.path],
-                });
+        
+        if (competitor.noChange || competitor.prices.vista.etanol === "Sem dados") {
+            continue; // Pula a validação para este concorrente
+        }
+
+        if (!competitor.photo?.dataUri) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ['competitors', i, 'photo'],
+                message: REQUIRED_FIELD_MESSAGE,
             });
         }
+
+        const priceTypes = ['etanol', 'gasolinaComum', 'gasolinaAditivada', 'dieselS10'] as const;
+        priceTypes.forEach(type => {
+            if ((!competitor.prices.vista[type] || competitor.prices.vista[type] === '') && competitor.prices.vista[type] !== "Sem dados") {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    path: ['competitors', i, 'prices', 'vista', type],
+                    message: REQUIRED_FIELD_MESSAGE,
+                });
+            }
+            if ((!competitor.prices.prazo[type] || competitor.prices.prazo[type] === '') && competitor.prices.prazo[type] !== "Sem dados") {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    path: ['competitors', i, 'prices', 'prazo', type],
+                    message: REQUIRED_FIELD_MESSAGE,
+                });
+            }
+        });
     }
 });
 
