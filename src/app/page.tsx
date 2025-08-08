@@ -21,44 +21,49 @@ export default function DashboardPage() {
 
   useEffect(() => {
     setIsClient(true);
-    const defaultManagerId = 'default-manager';
-    setManagerId(defaultManagerId);
-
-    let savedStationData: Station | null = null;
-    let savedCompetitorCount: number | null = null;
-
-    try {
-      const stationDataString = window.localStorage.getItem('stationData');
-      if (stationDataString) {
-        savedStationData = JSON.parse(stationDataString);
-      }
-      const competitorCountString = window.localStorage.getItem('competitorCount');
-      if (competitorCountString) {
-          savedCompetitorCount = parseInt(competitorCountString, 10);
-      }
-    } catch (e) {
-      console.error("Failed to parse data from localStorage", e);
-    }
-    
-    if (savedCompetitorCount !== null && !isNaN(savedCompetitorCount)) {
-        setNumberOfCompetitors(savedCompetitorCount);
-    }
-
-    const baseStation = STATIONS[0];
-
-    const resolvedStation = savedStationData ? {
-      ...baseStation,
-      id: savedStationData.id || baseStation.id,
-      name: savedStationData.name || baseStation.name,
-      competitors: baseStation.competitors.map((comp, index) => {
-        const savedComp = savedStationData?.competitors?.[index];
-        return savedComp ? { ...comp, name: savedComp.name } : comp;
-      })
-    } : baseStation;
-    
-    setStation(resolvedStation);
-    setIsLoading(false);
   }, []);
+
+  useEffect(() => {
+    if (isClient) {
+      const defaultManagerId = 'default-manager';
+      setManagerId(defaultManagerId);
+
+      let savedStationData: Station | null = null;
+      let savedCompetitorCount: number | null = null;
+
+      try {
+        const stationDataString = window.localStorage.getItem('stationData');
+        if (stationDataString) {
+          savedStationData = JSON.parse(stationDataString);
+        }
+        const competitorCountString = window.localStorage.getItem('competitorCount');
+        if (competitorCountString) {
+            savedCompetitorCount = parseInt(competitorCountString, 10);
+        }
+      } catch (e) {
+        console.error("Failed to parse data from localStorage", e);
+      }
+      
+      if (savedCompetitorCount !== null && !isNaN(savedCompetitorCount)) {
+          setNumberOfCompetitors(savedCompetitorCount);
+      }
+
+      const baseStation = STATIONS[0];
+
+      const resolvedStation = savedStationData ? {
+        ...baseStation,
+        id: savedStationData.id || baseStation.id,
+        name: savedStationData.name || baseStation.name,
+        competitors: baseStation.competitors.map((comp, index) => {
+          const savedComp = savedStationData?.competitors?.[index];
+          return savedComp ? { ...comp, name: savedComp.name } : comp;
+        })
+      } : baseStation;
+      
+      setStation(resolvedStation);
+      setIsLoading(false);
+    }
+  }, [isClient]);
   
   const handleCompetitorCountChange = (count: number) => {
     setNumberOfCompetitors(count);
@@ -78,7 +83,7 @@ export default function DashboardPage() {
       return competitors.slice(0, numberOfCompetitors);
   }
 
-  if (isLoading || !station || !managerId) {
+  if (!isClient || isLoading || !station || !managerId) {
     return (
        <div className="min-h-screen bg-background">
         <header className="bg-card shadow-sm border-b border-border">
