@@ -104,10 +104,7 @@ const createPriceFormSchema = (numberOfCompetitors: number) => z.object({
     for (let i = 0; i < numberOfCompetitors; i++) {
         const competitor = data.competitors[i];
         
-        if (competitor.noChange || competitor.prices.vista.etanol === "Sem dados") {
-            continue; // Pula a validação para este concorrente
-        }
-
+        // Foto do concorrente é sempre obrigatória se ele estiver visível
         if (!competitor.photo?.dataUri) {
             ctx.addIssue({
                 code: z.ZodIssueCode.custom,
@@ -116,23 +113,26 @@ const createPriceFormSchema = (numberOfCompetitors: number) => z.object({
             });
         }
 
-        const priceTypes = ['etanol', 'gasolinaComum', 'gasolinaAditivada', 'dieselS10'] as const;
-        priceTypes.forEach(type => {
-            if ((!competitor.prices.vista[type] || competitor.prices.vista[type] === '') && competitor.prices.vista[type] !== "Sem dados") {
-                ctx.addIssue({
-                    code: z.ZodIssueCode.custom,
-                    path: ['competitors', i, 'prices', 'vista', type],
-                    message: REQUIRED_FIELD_MESSAGE,
-                });
-            }
-            if ((!competitor.prices.prazo[type] || competitor.prices.prazo[type] === '') && competitor.prices.prazo[type] !== "Sem dados") {
-                ctx.addIssue({
-                    code: z.ZodIssueCode.custom,
-                    path: ['competitors', i, 'prices', 'prazo', type],
-                    message: REQUIRED_FIELD_MESSAGE,
-                });
-            }
-        });
+        // Validação de preços só ocorre se a opção "não alterou" NÃO estiver marcada
+        if (!competitor.noChange) {
+            const priceTypes = ['etanol', 'gasolinaComum', 'gasolinaAditivada', 'dieselS10'] as const;
+            priceTypes.forEach(type => {
+                if ((!competitor.prices.vista[type] || competitor.prices.vista[type] === '') && competitor.prices.vista[type] !== "Sem dados") {
+                    ctx.addIssue({
+                        code: z.ZodIssueCode.custom,
+                        path: ['competitors', i, 'prices', 'vista', type],
+                        message: REQUIRED_FIELD_MESSAGE,
+                    });
+                }
+                if ((!competitor.prices.prazo[type] || competitor.prices.prazo[type] === '') && competitor.prices.prazo[type] !== "Sem dados") {
+                    ctx.addIssue({
+                        code: z.ZodIssueCode.custom,
+                        path: ['competitors', i, 'prices', 'prazo', type],
+                        message: REQUIRED_FIELD_MESSAGE,
+                    });
+                }
+            });
+        }
     }
 });
 
