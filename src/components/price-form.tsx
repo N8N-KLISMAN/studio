@@ -548,20 +548,23 @@ const onFormError = (errors: any) => {
         
         Swal.close();
         
-        // Get current data, clear only photos, and reset the form
         const currentData = form.getValues();
         currentData.stationPhoto = undefined;
         currentData.competitors.forEach(c => c.photo = undefined);
         form.reset(currentData);
         
-        // Also clear photos from localStorage
         window.localStorage.setItem(storageKey, JSON.stringify(currentData));
         
         Swal.fire({
             icon: 'success',
             title: 'Sucesso!',
-            text: 'Os dados foram enviados corretamente.',
-            confirmButtonColor: 'hsl(var(--primary))'
+            html: 'Os dados foram enviados corretamente.<br>Aguardamos o seu próximo envio para o período da tarde.',
+            confirmButtonColor: 'hsl(var(--primary))',
+            confirmButtonText: 'Voltar para o Início'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                router.push('/');
+            }
         });
 
     } catch (error) {
