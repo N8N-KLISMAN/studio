@@ -562,8 +562,6 @@ const onFormError = (errors: any) => {
             title: 'Sucesso!',
             text: 'Os dados foram enviados corretamente.',
             confirmButtonColor: 'hsl(var(--primary))'
-        }).then(() => {
-             router.push(`/success?period=${period}`);
         });
 
     } catch (error) {
