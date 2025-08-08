@@ -382,30 +382,23 @@ export function PriceForm({ station, period, managerId, onStationUpdate }: Price
     if (isClient) {
       const subscription = form.watch((value) => {
         window.localStorage.setItem(storageKey, JSON.stringify(value));
-        // Also update the global station data for name changes
-        if (value.stationName && value.stationName !== station.name) {
-          onStationUpdate({ ...station, name: value.stationName });
-        }
-        value.competitors?.forEach((competitor, index) => {
-          if (competitor.name && competitor.name !== station.competitors[index].name) {
-            const newCompetitors = [...station.competitors];
-            newCompetitors[index].name = competitor.name;
-            onStationUpdate({ ...station, competitors: newCompetitors });
-          }
-        });
       });
       return () => subscription.unsubscribe();
     }
-  }, [isClient, storageKey, form, station, onStationUpdate]);
+  }, [isClient, storageKey, form]);
   
   const stationNoChange = form.watch('stationNoChange');
 
   const handleStationNameChange = (newName: string) => {
       form.setValue('stationName', newName);
+      onStationUpdate({ ...station, name: newName });
   }
 
   const handleCompetitorNameChange = (index: number, newName: string) => {
       form.setValue(`competitors.${index}.name`, newName);
+      const newCompetitors = [...station.competitors];
+      newCompetitors[index].name = newName;
+      onStationUpdate({ ...station, competitors: newCompetitors });
   };
 
 
@@ -737,5 +730,3 @@ const onFormError = (errors: any) => {
     </>
   );
 }
-
-    
