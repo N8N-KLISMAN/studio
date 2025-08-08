@@ -301,7 +301,12 @@ const PriceInputWithNoData = ({field, disabled}: {field: any, disabled: boolean}
 export function PriceForm({ station, period, managerId }: PriceFormProps) {
   const router = useRouter();
   const { toast } = useToast();
+  const [isClient, setIsClient] = useState(false);
   const storageKey = `price-form-${station.id}-${period}`;
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const defaultValues = {
     stationPrices: { vista: {}, prazo: {} },
@@ -322,15 +327,7 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
   const watchedValues = form.watch();
 
   useEffect(() => {
-    // Save to localStorage on change
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(storageKey, JSON.stringify(watchedValues));
-    }
-  }, [watchedValues, storageKey]);
-
-  useEffect(() => {
-    // Load from localStorage on mount, only on client
-    if (typeof window !== 'undefined') {
+    if (isClient) {
       const savedData = window.localStorage.getItem(storageKey);
       if (savedData) {
         try {
@@ -342,7 +339,17 @@ export function PriceForm({ station, period, managerId }: PriceFormProps) {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storageKey, form.reset]);
+  }, [isClient, storageKey, form.reset]);
+
+
+  useEffect(() => {
+    if (isClient) {
+      const subscription = form.watch((value) => {
+        window.localStorage.setItem(storageKey, JSON.stringify(value));
+      });
+      return () => subscription.unsubscribe();
+    }
+  }, [isClient, storageKey, form]);
 
 
   const { fields } = useFieldArray({
