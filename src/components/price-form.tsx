@@ -30,6 +30,7 @@ import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import Swal from 'sweetalert2';
+import { STATIONS } from '@/lib/data';
 
 const REQUIRED_FIELD_MESSAGE = "Preencha Aqui!";
 
@@ -101,23 +102,19 @@ const priceFormSchema = z.object({
         const priceTypes = ['etanol', 'gasolinaComum', 'gasolinaAditivada', 'dieselS10'] as const;
 
         priceTypes.forEach(type => {
-            if (!data.stationPrices.vista[type] || data.stationPrices.vista[type] === '') {
-                if (data.stationPrices.vista[type] !== 'Sem dados') {
-                    ctx.addIssue({
-                        code: z.ZodIssueCode.custom,
-                        path: ['stationPrices', 'vista', type],
-                        message: REQUIRED_FIELD_MESSAGE,
-                    });
-                }
+            if ((!data.stationPrices.vista[type] || data.stationPrices.vista[type] === '') && data.stationPrices.vista[type] !== 'Sem dados') {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    path: ['stationPrices', 'vista', type],
+                    message: REQUIRED_FIELD_MESSAGE,
+                });
             }
-            if (!data.stationPrices.prazo[type] || data.stationPrices.prazo[type] === '') {
-                 if (data.stationPrices.prazo[type] !== 'Sem dados') {
-                    ctx.addIssue({
-                        code: z.ZodIssueCode.custom,
-                        path: ['stationPrices', 'prazo', type],
-                        message: REQUIRED_FIELD_MESSAGE,
-                    });
-                }
+            if ((!data.stationPrices.prazo[type] || data.stationPrices.prazo[type] === '') && data.stationPrices.prazo[type] !== 'Sem dados') {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    path: ['stationPrices', 'prazo', type],
+                    message: REQUIRED_FIELD_MESSAGE,
+                });
             }
         });
     }
@@ -127,23 +124,19 @@ const priceFormSchema = z.object({
         if (!competitor.noChange) {
             const priceTypes = ['etanol', 'gasolinaComum', 'gasolinaAditivada', 'dieselS10'] as const;
             priceTypes.forEach(type => {
-                if (!competitor.prices.vista[type] || competitor.prices.vista[type] === '') {
-                     if (competitor.prices.vista[type] !== 'Sem dados') {
-                        ctx.addIssue({
-                            code: z.ZodIssueCode.custom,
-                            path: [`competitors`, index, 'prices', 'vista', type],
-                            message: REQUIRED_FIELD_MESSAGE,
-                        });
-                    }
+                if ((!competitor.prices.vista[type] || competitor.prices.vista[type] === '') && competitor.prices.vista[type] !== 'Sem dados') {
+                    ctx.addIssue({
+                        code: z.ZodIssueCode.custom,
+                        path: [`competitors`, index, 'prices', 'vista', type],
+                        message: REQUIRED_FIELD_MESSAGE,
+                    });
                 }
-                if (!competitor.prices.prazo[type] || competitor.prices.prazo[type] === '') {
-                     if (competitor.prices.prazo[type] !== 'Sem dados') {
-                        ctx.addIssue({
-                            code: z.ZodIssueCode.custom,
-                            path: [`competitors`, index, 'prices', 'prazo', type],
-                            message: REQUIRED_FIELD_MESSAGE,
-                        });
-                    }
+                if ((!competitor.prices.prazo[type] || competitor.prices.prazo[type] === '') && competitor.prices.prazo[type] !== 'Sem dados') {
+                    ctx.addIssue({
+                        code: z.ZodIssueCode.custom,
+                        path: [`competitors`, index, 'prices', 'prazo', type],
+                        message: REQUIRED_FIELD_MESSAGE,
+                    });
                 }
             });
         }
@@ -386,9 +379,6 @@ export function PriceForm({ station, period, managerId, onStationUpdate }: Price
 
   const handleCompetitorNameChange = (index: number, newName: string) => {
     form.setValue(`competitors.${index}.name`, newName);
-    const updatedCompetitors = [...station.competitors];
-    updatedCompetitors[index].name = newName;
-    onStationUpdate({ ...station, competitors: updatedCompetitors });
   };
 
 
@@ -410,14 +400,16 @@ export function PriceForm({ station, period, managerId, onStationUpdate }: Price
         if (!dataUri) return '';
         return dataUri.split(',')[1] || '';
     };
+
+    const originalStation = STATIONS.find(s => s.id === station.id) ?? station;
     
     payload["Data e Hora do Envio"] = dateTimeFormatted;
     payload["Periodo Marcado"] = period;
     payload["Nome do Posto"] = data.stationName;
 
-
-    payload[`(${data.stationName}) Foto da minha placa`] = extractBase64(data.stationPhoto?.dataUri);
-    payload[`(${data.stationName}) Marcou Opção de Alteração de preço`] = data.stationNoChange ? 'SIM' : 'NÃO';
+    const stationPrefix = `(${originalStation.name})`;
+    payload[`${stationPrefix} Foto da minha placa`] = extractBase64(data.stationPhoto?.dataUri);
+    payload[`${stationPrefix} Marcou Opção de Alteração de preço`] = data.stationNoChange ? 'SIM' : 'NÃO';
 
     const priceTypes = ['etanol', 'gasolinaComum', 'gasolinaAditivada', 'dieselS10'];
     const paymentMethods: Array<keyof PriceFormValues['stationPrices']> = ['vista', 'prazo'];
@@ -426,7 +418,7 @@ export function PriceForm({ station, period, managerId, onStationUpdate }: Price
     if (!data.stationNoChange) {
         paymentMethods.forEach(method => {
             priceTypes.forEach(type => {
-                const key = `(${data.stationName}) ${paymentLabels[method]}/${type}`;
+                const key = `${stationPrefix} ${paymentLabels[method]}/${type}`;
                 const stationPriceValue = data.stationPrices?.[method]?.[type as keyof typeof priceSchema.shape];
                 
                 if(stationPriceValue === 'Sem dados'){
@@ -439,15 +431,17 @@ export function PriceForm({ station, period, managerId, onStationUpdate }: Price
     }
 
     data.competitors.forEach((competitor, index) => {
-        const competitorName = data.competitors[index].name;
-        payload[`Nome do Concorrente ${index + 1}`] = competitorName;
-        payload[`(${competitorName}) Foto da placa`] = extractBase64(competitor.photo?.dataUri);
-        payload[`(${competitorName}) Marcou Opção de Alteração de preço`] = competitor.noChange ? 'SIM' : 'NÃO';
+        const originalCompetitor = originalStation.competitors[index];
+        const competitorPrefix = `(${originalCompetitor.name})`;
+
+        payload[`Nome do Concorrente ${index + 1}`] = competitor.name;
+        payload[`${competitorPrefix} Foto da placa`] = extractBase64(competitor.photo?.dataUri);
+        payload[`${competitorPrefix} Marcou Opção de Alteração de preço`] = competitor.noChange ? 'SIM' : 'NÃO';
         
         if (!competitor.noChange) {
             paymentMethods.forEach(method => {
                 priceTypes.forEach(type => {
-                    const key = `(${competitorName}) ${paymentLabels[method]}/${type}`;
+                    const key = `${competitorPrefix} ${paymentLabels[method]}/${type}`;
                     const competitorPriceValue = competitor.prices?.[method]?.[type as keyof typeof priceSchema.shape];
 
                      if(competitorPriceValue === 'Sem dados'){
@@ -519,11 +513,15 @@ const onFormError = (errors: any) => {
         
         Swal.close();
         
+        // Get current data and selectively clear photo fields
         const currentData = form.getValues();
         currentData.stationPhoto = undefined;
         currentData.competitors.forEach(c => c.photo = undefined);
+        
+        // Reset the form with prices and names intact
         form.reset(currentData);
 
+        // Also update localStorage to reflect the cleared photos
         if (typeof window !== 'undefined') {
           const savedData = window.localStorage.getItem(storageKey);
           if (savedData) {
